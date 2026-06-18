@@ -1318,6 +1318,86 @@ async function generateReportForConsultant(cid) {
     has_diagnosis: !!diag?.diagnosis_json, has_coaching: !!diag?.coaching_tasks };
 }
 
+// ---- 分析完成后自动存入话术库 ----
+async function autoInsertGoldenScripts(callId, analysis, consultantName, callDate, audioUrl) {
+  try {
+    const ss = analysis.script_score || {};
+    const overall = ss.overall || 0;
+    const gs = analysis.golden_scripts || [];
+    const gsTexts = gs.filter(g => g.text && g.text.trim().length > 5);
+
+    if (gsTexts.length === 0 && overall < 70) return 0;
+
+    const parentTypes = Array.isArray(analysis.parent_type) ? analysis.parent_type
+      : (typeof analysis.parent_type === 'string' ? [analysis.parent_type] : []);
+    const problemCategory = analysis.problem_category || '';
+    const problemSubtype = analysis.problem_subtype || '';
+    const scene = analysis.scene || '';
+
+    // 检查是否已存在（去重）
+    const { data: existing } = await supabase.from('custom_scripts')
+      .select('script_id').eq('script_id', callId + '_auto').maybeSingle();
+
+    if (existing) return 0;
+
+    const reasons = gs.map(g => g.reason || '话术表达清晰，能有效引导沟通');
+    let inserted = 0;
+
+    if (gsTexts.length > 0) {
+      for (let i = 0; i < gsTexts.length; i++) {
+        const sid = `${callId}_auto_${i}`;
+        const { data: dup } = await supabase.from('custom_scripts')
+          .select('script_id').eq('script_id', sid).maybeSingle();
+        if (dup) continue;
+
+        await supabase.from('custom_scripts').insert({
+          script_id: sid,
+          content: gsTexts[i].text,
+          scene: gs[i]?.scene || scene || '通话对话',
+          score: overall,
+          why_good: reasons[i] || '话术表达清晰，能有效引导沟通并推动进展',
+          consultant_name: consultantName,
+          call_date: callDate,
+          audio_url: audioUrl,
+          parent_type: parentTypes,
+          problem_type: (analysis.objection_handling || []).map(o => o.objection_type).filter(Boolean),
+          problem_category: problemCategory,
+          problem_subtype: problemSubtype,
+          tags: (analysis.tags || []).slice(0, 5)
+        });
+        inserted++;
+      }
+    } else if (overall >= 70) {
+      // 无金句但分数 OK → 兜底收录
+      const sid = callId + '_auto';
+      await supabase.from('custom_scripts').insert({
+        script_id: sid,
+        content: '该通话综合评分良好，建议收听原声学习整体沟通节奏',
+        scene: '综合高分通话',
+        score: overall,
+        why_good: '整体沟通质量较高，各维度表现均衡',
+        consultant_name: consultantName,
+        call_date: callDate,
+        audio_url: audioUrl,
+        parent_type: parentTypes,
+        problem_type: (analysis.objection_handling || []).map(o => o.objection_type).filter(Boolean),
+        problem_category: problemCategory,
+        problem_subtype: problemSubtype,
+        tags: (analysis.tags || []).slice(0, 5)
+      });
+      inserted = 1;
+    }
+
+    if (inserted > 0) {
+      console.log(`[Scripts] Auto-inserted ${inserted} scripts from call ${callId} (score: ${overall})`);
+    }
+    return inserted;
+  } catch (e) {
+    console.error(`[Scripts] Auto-insert failed for ${callId}:`, e.message);
+    return 0;
+  }
+}
+
 // ---- 生成报告 API ----
 app.post('/api/generate-report/:consultant_id', async (req, res) => {
   try {
@@ -1382,6 +1462,9 @@ app.post('/api/analyze-call/:call_id', async (req, res) => {
       processing_status: 'ANALYZED'
     }).eq('id', record.id);
 
+    // 自动将金句话术入库
+    autoInsertGoldenScripts(record.call_id, analysis, record.consultant_name, record.call_date, record.audio_url);
+
     res.json({
       success: true,
       call_id: record.call_id,
@@ -1435,6 +1518,9 @@ app.post('/api/run-pipeline', async (req, res) => {
           analysis_json: analysis,
           processing_status: 'ANALYZED'
         }).eq('id', record.id);
+
+        // 自动将金句话术入库
+        autoInsertGoldenScripts(cid, analysis, record.consultant_name, record.call_date, record.audio_url);
 
         results.push({
           call_id: cid,

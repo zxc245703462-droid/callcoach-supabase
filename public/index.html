@@ -206,20 +206,6 @@
       <span class="sidebar-text">组织视图</span>
     </button>
 
-    <button onclick="showPage('stats')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group" data-page="stats">
-      <div class="w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center group-hover:bg-purple-100 dark:group-hover:bg-purple-900/40 transition-colors">
-        <i data-lucide="bar-chart-3" class="w-5 h-5 text-purple-600"></i>
-      </div>
-      <span class="sidebar-text">统计分析</span>
-    </button>
-
-    <button onclick="showPage('reports')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group" data-page="reports">
-      <div class="w-9 h-9 rounded-lg bg-pink-50 dark:bg-pink-900/20 flex items-center justify-center group-hover:bg-pink-100 dark:group-hover:bg-pink-900/40 transition-colors">
-        <i data-lucide="file-text" class="w-5 h-5 text-pink-600"></i>
-      </div>
-      <span class="sidebar-text">报告中心</span>
-    </button>
-
     <button onclick="showPage('library')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group" data-page="library">
       <div class="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center group-hover:bg-amber-100 dark:group-hover:bg-amber-900/40 transition-colors">
         <i data-lucide="star" class="w-5 h-5 text-amber-600"></i>
@@ -359,6 +345,28 @@
         </div>
       </div>
       <div id="chart-radar" style="width:100%;height:320px;"></div>
+    </div>
+  </div>
+
+  <!-- Charts Row 3: SPIN Dimensions + Score Distribution -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">SPIN 维度分布</h3>
+          <p class="text-sm text-gray-500">团队各维度质控得分</p>
+        </div>
+      </div>
+      <div id="chart-bar" style="width:100%;height:300px;"></div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">得分分布</h3>
+          <p class="text-sm text-gray-500">通话得分区间统计</p>
+        </div>
+      </div>
+      <div id="chart-pie" style="width:100%;height:300px;"></div>
     </div>
   </div>
 </div>
@@ -535,47 +543,6 @@
 
   <div id="consultantCardsGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <p class="col-span-2 text-center text-gray-500 py-12">加载中...</p>
-  </div>
-</div>
-
-<!-- ==================== PAGE: STATS ==================== -->
-<div id="page-stats" class="page page-transition">
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">统计分析</h1>
-      <p class="text-sm text-gray-500 mt-1">团队数据深度分析</p>
-    </div>
-    <button onclick="loadStats()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><i data-lucide="refresh-cw" class="w-4 h-4 text-gray-500"></i></button>
-  </div>
-
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">SPIN 维度分布</h3>
-      <p class="text-sm text-gray-500 mb-4">团队各维度得分分布</p>
-      <div id="chart-bar" style="width:100%;height:300px;"></div>
-    </div>
-    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">得分分布</h3>
-      <p class="text-sm text-gray-500 mb-4">通话得分区间统计</p>
-      <div id="chart-pie" style="width:100%;height:300px;"></div>
-    </div>
-  </div>
-
-</div>
-
-<!-- ==================== PAGE: REPORTS ==================== -->
-<div id="page-reports" class="page page-transition">
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">报告中心</h1>
-      <p class="text-sm text-gray-500 mt-1">生成和管理分析报告</p>
-    </div>
-    <button onclick="loadReports()" class="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-primary-500/20">
-      <i data-lucide="refresh-cw" class="w-4 h-4"></i> 刷新
-    </button>
-  </div>
-  <div id="reportsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <p class="col-span-3 text-center text-gray-500 py-12">加载中...</p>
   </div>
 </div>
 
@@ -1032,8 +999,6 @@ const pageLoaders = {
   analyze: initAnalyzePage,
   calls: loadCalls,
   consultants: loadConsultants,
-  stats: loadStats,
-  reports: loadReports,
   library: loadLibrary,
   compare: initCompareSelectors,
   org: loadOrgView,
@@ -1555,6 +1520,51 @@ function updateDashboardCharts(stats) {
       data: [
         { value: radarData, name: '团队平均', areaStyle: { color: 'rgba(59,130,246,0.2)' }, lineStyle: { color: '#3b82f6', width: 2 }, itemStyle: { color: '#3b82f6' } },
         { value: [70, 70, 70, 70, 70].slice(0, radarIndicators.length), name: '目标线', areaStyle: { color: 'rgba(16,185,129,0.08)' }, lineStyle: { color: '#10b981', width: 2, type: 'dashed' }, itemStyle: { color: '#10b981' }, symbol: 'none' }
+      ]
+    }]
+  }, true);
+
+  // ---- SPIN 维度柱状图 ----
+  const barChart = echarts.getInstanceByDom(document.getElementById('chart-bar')) || echarts.init(document.getElementById('chart-bar'));
+  const spinDims = stats.spin_dimensions || {};
+  const spinCoverage = stats.spin_coverage || {};
+  const dimLabels = { situation: 'S-现状问题', problem: 'P-困难挑战', implication: 'I-影响后果', need_payoff: 'N-需求回报' };
+  const barData = ['situation', 'problem', 'implication', 'need_payoff'].map(k => ({
+    name: dimLabels[k],
+    value: spinDims[k] || 0,
+    coverage: (spinCoverage[k] && spinCoverage[k].coverage_rate) || 0
+  }));
+
+  barChart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: isDark ? '#1e293b' : '#fff',
+      borderColor: axisColor,
+      textStyle: { color: isDark ? '#f1f5f9' : '#111827' },
+      formatter: function(params) {
+        const d = barData[params[0].dataIndex];
+        return '<strong>' + d.name + '</strong><br/>质控得分: ' + d.value + '分<br/>覆盖率: ' + d.coverage + '%';
+      }
+    },
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '5%', containLabel: true },
+    xAxis: { type: 'category', data: barData.map(d => d.name), axisLine: { lineStyle: { color: axisColor } }, axisLabel: { color: textColor } },
+    yAxis: { type: 'value', max: 100, axisLine: { show: false }, splitLine: { lineStyle: { color: axisColor } }, axisLabel: { color: textColor } },
+    series: [{ data: barData.map((d, i) => ({ value: d.value, itemStyle: { color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'][i] } })), type: 'bar', barWidth: '50%', borderRadius: [6, 6, 0, 0] }]
+  }, true);
+
+  // ---- 得分分布饼图 ----
+  const pieChart = echarts.getInstanceByDom(document.getElementById('chart-pie')) || echarts.init(document.getElementById('chart-pie'));
+  const dist = stats.score_distribution || { '90-100': 0, '80-89': 0, '60-79': 0, '0-59': 0 };
+  pieChart.setOption({
+    tooltip: { trigger: 'item', backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: axisColor, textStyle: { color: isDark ? '#f1f5f9' : '#111827' } },
+    legend: { orient: 'vertical', right: '5%', top: 'center', textStyle: { color: textColor } },
+    series: [{
+      type: 'pie', radius: ['40%', '70%'], center: ['40%', '50%'],
+      data: [
+        { value: dist['60-79'] || 0, name: '60-80分', itemStyle: { color: '#f59e0b' } },
+        { value: dist['80-89'] || 0, name: '80-90分', itemStyle: { color: '#3b82f6' } },
+        { value: dist['90-100'] || 0, name: '90分以上', itemStyle: { color: '#10b981' } },
+        { value: dist['0-59'] || 0, name: '60分以下', itemStyle: { color: '#ef4444' } }
       ]
     }]
   }, true);
@@ -2500,128 +2510,15 @@ async function generateReport(consultantId) {
     const data = await response.json();
     if (response.ok) {
       showToast('报告已生成: ' + (data.consultant_name || '') + ' (' + (data.call_count || 0) + '通)', 'success');
+      // 自动下载/打开报告
+      if (data.report_url) {
+        window.open(data.report_url, '_blank');
+      }
     } else {
       showToast('生成失败：' + (data.error || '未知错误'), 'error');
     }
   } catch (e) {
     showToast('请求失败：' + e.message, 'error');
-  }
-}
-
-// ==================== STATS ====================
-async function loadStats() {
-  try {
-    const stats = await api('/api/stats');
-    if (!stats) return;
-
-    const isDark = html.classList.contains('dark');
-    const textColor = isDark ? '#94a3b8' : '#6b7280';
-    const axisColor = isDark ? '#334155' : '#e5e7eb';
-
-    // Bar Chart - SPIN 维度质控得分
-    const barChart = echarts.getInstanceByDom(document.getElementById('chart-bar')) || echarts.init(document.getElementById('chart-bar'));
-    const spinDims = stats.spin_dimensions || {};
-    const spinCoverage = stats.spin_coverage || {};
-    const dimLabels = { situation: 'S-现状问题', problem: 'P-困难挑战', implication: 'I-影响后果', need_payoff: 'N-需求回报' };
-    const dimColors = { situation: '#3b82f6', problem: '#10b981', implication: '#f59e0b', need_payoff: '#ef4444' };
-    const barData = ['situation', 'problem', 'implication', 'need_payoff'].map(k => ({
-      name: dimLabels[k],
-      value: spinDims[k] || 0,
-      coverage: (spinCoverage[k] && spinCoverage[k].coverage_rate) || 0
-    }));
-
-    barChart.setOption({
-      tooltip: {
-        trigger: 'axis',
-        backgroundColor: isDark ? '#1e293b' : '#fff',
-        borderColor: axisColor,
-        textStyle: { color: isDark ? '#f1f5f9' : '#111827' },
-        formatter: function(params) {
-          const d = params[0];
-          const dataItem = barData[d.dataIndex];
-          return `<strong>${d.name}</strong><br/>质控得分: ${d.value}分<br/>覆盖率: ${dataItem.coverage}%`;
-        }
-      },
-      grid: { left: '3%', right: '4%', bottom: '3%', top: '5%', containLabel: true },
-      xAxis: { type: 'category', data: barData.map(d => d.name), axisLine: { lineStyle: { color: axisColor } }, axisLabel: { color: textColor } },
-      yAxis: { type: 'value', max: 100, axisLine: { show: false }, splitLine: { lineStyle: { color: axisColor } }, axisLabel: { color: textColor } },
-      series: [{ data: barData.map((d, i) => ({ value: d.value, itemStyle: { color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'][i] } })), type: 'bar', barWidth: '50%', borderRadius: [6, 6, 0, 0] }]
-    }, true);
-
-    // Pie Chart - Score distribution
-    const pieChart = echarts.getInstanceByDom(document.getElementById('chart-pie')) || echarts.init(document.getElementById('chart-pie'));
-    const dist = stats.score_distribution || { '90-100': 0, '80-89': 0, '60-79': 0, '0-59': 0 };
-    pieChart.setOption({
-      tooltip: { trigger: 'item', backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: axisColor, textStyle: { color: isDark ? '#f1f5f9' : '#111827' } },
-      legend: { orient: 'vertical', right: '5%', top: 'center', textStyle: { color: textColor } },
-      series: [{
-        type: 'pie', radius: ['40%', '70%'], center: ['40%', '50%'], avoidLabelOverlap: false,
-        itemStyle: { borderRadius: 8, borderColor: isDark ? '#1e293b' : '#fff', borderWidth: 2 },
-        label: { show: false },
-        data: [
-          { value: dist['60-79'] || 0, name: '60-80分', itemStyle: { color: '#f59e0b' } },
-          { value: dist['80-89'] || 0, name: '80-90分', itemStyle: { color: '#3b82f6' } },
-          { value: dist['90-100'] || 0, name: '90分以上', itemStyle: { color: '#10b981' } },
-          { value: dist['0-59'] || 0, name: '60分以下', itemStyle: { color: '#ef4444' } }
-        ]
-      }]
-    }, true);
-
-  } catch (e) {
-    console.error('Stats load error:', e);
-  }
-}
-
-// ==================== REPORTS ====================
-async function loadReports() {
-  try {
-    const reports = await api('/api/reports');
-    allReports = reports || [];
-    const grid = document.getElementById('reportsGrid');
-    if (!allReports || allReports.length === 0) {
-      grid.innerHTML = '<p class="col-span-3 text-center text-gray-500 py-12">暂无报告，请先生成顾问分析报告</p>';
-      return;
-    }
-    grid.innerHTML = allReports.map(r => `
-      <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 card-hover">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-            <i data-lucide="file-text" class="w-5 h-5 text-primary-600"></i>
-          </div>
-          <div>
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">${r.consultant_name} 话术指导报告</h3>
-            <p class="text-xs text-gray-500">${r.generated_at || ''} · ${formatFileSize(r.size)}</p>
-          </div>
-        </div>
-        <div class="flex gap-2">
-          <button onclick="window.open('${API_BASE}/api/download-report/${encodeURIComponent(r.filename)}', '_blank')" class="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 rounded-lg text-xs font-medium hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors">
-            <i data-lucide="eye" class="w-3.5 h-3.5"></i> 查看
-          </button>
-          <button onclick="deleteReport('${encodeURIComponent(r.filename)}')" class="px-3 py-2 bg-gray-50 dark:bg-gray-700/30 text-danger-600 rounded-lg text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
-            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-          </button>
-        </div>
-      </div>
-    `).join('');
-    lucide.createIcons();
-  } catch (e) {
-    document.getElementById('reportsGrid').innerHTML = '<p class="col-span-3 text-center text-danger-500 py-12">加载失败：' + e.message + '</p>';
-  }
-}
-
-async function deleteReport(reportId) {
-  if (!confirm('确定删除该报告？')) return;
-  try {
-    const res = await fetch(API_BASE + '/api/reports/' + reportId, { method: 'DELETE' });
-    if (res.ok) {
-      showToast('已删除', 'success');
-      loadReports();
-    } else {
-      const data = await res.json();
-      showToast('删除失败：' + (data.error || ''), 'error');
-    }
-  } catch (e) {
-    showToast('删除失败：' + e.message, 'error');
   }
 }
 
