@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3000;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
-const IS_ARK = DEEPSEEK_API_KEY.startsWith('ark-');
+const IS_ARK = DEEPSEEK_API_KEY.startsWith('ark-') || (process.env.LLM_MODEL || '').startsWith('ep-');
 const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL
   || (IS_ARK ? 'https://ark.cn-beijing.volces.com/api/v3' : 'https://api.deepseek.com');
 const LLM_MODEL = process.env.LLM_MODEL
@@ -1130,8 +1130,8 @@ async function callDeepSeek(systemPrompt, userMessage, maxTokens = 4096) {
   });
 
   if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`DeepSeek API error ${response.status}: ${errText}`);
+    const errText = await response.text().catch(() => '(no body)');
+    throw new Error(`DeepSeek API error ${response.status} from ${url}: ${errText.slice(0, 500)}`);
   }
 
   const data = await response.json();
@@ -1212,7 +1212,7 @@ async function deepseekAnalysis(transcript, consultantName) {
   try {
     result = await callDeepSeek(systemPrompt, userMessage, 4096);
   } catch (e) {
-    console.error('[DeepSeek] API 调用失败，回退规则引擎:', e.message);
+    console.error(`[DeepSeek] API 调用失败 (IS_ARK=${IS_ARK}, model=${LLM_MODEL}), 回退规则引擎:`, e.message);
     return { result: ruleBasedAnalysis(transcript, consultantName), cost: 0, fallback: true, error: e.message };
   }
 
