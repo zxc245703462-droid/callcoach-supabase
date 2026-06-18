@@ -1,0 +1,3105 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CallCoach - 通话话术智能分析平台</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          primary: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' },
+          success: { 50: '#ecfdf5', 100: '#d1fae5', 500: '#10b981', 600: '#059669', 700: '#047857' },
+          warning: { 50: '#fffbeb', 100: '#fef3c7', 500: '#f59e0b', 600: '#d97706', 700: '#b45309' },
+          danger: { 50: '#fef2f2', 100: '#fee2e2', 500: '#ef4444', 600: '#dc2626', 700: '#b91c1c' },
+          info: { 50: '#ecfeff', 100: '#cffafe', 500: '#06b6d4', 600: '#0891b2', 700: '#0e7490' },
+          surface: { 0: '#ffffff', 50: '#f9fafb', 100: '#f3f4f6', 200: '#e5e7eb', 300: '#d1d5db', 400: '#9ca3af', 500: '#6b7280', 600: '#4b5563', 700: '#374151', 800: '#1f2937', 900: '#111827' }
+        },
+        fontFamily: {
+          sans: ['Inter', 'system-ui', '-apple-system', 'PingFang SC', 'Microsoft YaHei', 'sans-serif']
+        }
+      }
+    }
+  }
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+  :root { --sidebar-width: 240px; --sidebar-collapsed: 72px; --header-height: 64px; }
+
+  * { scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
+  *::-webkit-scrollbar { width: 6px; height: 6px; }
+  *::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+
+  body { font-family: 'Inter', system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+
+  .glass { background: rgba(255,255,255,0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.2); }
+  .dark .glass { background: rgba(17,24,39,0.8); border-color: rgba(255,255,255,0.05); }
+
+  .card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+  .card-hover:hover { transform: translateY(-2px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); }
+
+  .gradient-text { background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+  .skeleton { background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%); background-size: 200% 100%; animation: skeleton 1.5s infinite; }
+  @keyframes skeleton { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  .page-transition { animation: fadeIn 0.4s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .sidebar-item { position: relative; transition: all 0.2s; }
+  .sidebar-item::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 0; background: #3b82f6; border-radius: 0 4px 4px 0; transition: height 0.2s; }
+  .sidebar-item.active::before { height: 24px; }
+  .sidebar-item.active { background: linear-gradient(90deg, rgba(59,130,246,0.1), transparent); }
+
+  .dropdown-enter { animation: dropdownIn 0.2s ease-out; }
+  @keyframes dropdownIn { from { opacity: 0; transform: scale(0.95) translateY(-4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+  .progress-bar { position: relative; overflow: hidden; }
+  .progress-bar::after { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); animation: shimmer 2s infinite; }
+  @keyframes shimmer { 100% { left: 100%; } }
+
+  .spin-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+  .spin-dot.s { background: #3b82f6; }
+  .spin-dot.p { background: #10b981; }
+  .spin-dot.i { background: #f59e0b; }
+  .spin-dot.n { background: #ef4444; }
+  .spin-dot.empty { background: #e5e7eb; }
+  .dark .spin-dot.empty { background: #374151; }
+
+  .toast-enter { animation: toastIn 0.3s ease-out; }
+  @keyframes toastIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  .dark body { background: #0f172a; }
+  .dark .bg-white { background: #1e293b !important; }
+  .dark .bg-gray-50 { background: #0f172a !important; }
+  .dark .bg-gray-100 { background: #1e293b !important; }
+  .dark .text-gray-800 { color: #f1f5f9 !important; }
+  .dark .text-gray-600 { color: #94a3b8 !important; }
+  .dark .text-gray-500 { color: #64748b !important; }
+  .dark .border-gray-200 { border-color: #334155 !important; }
+  .dark .border-gray-100 { border-color: #1e293b !important; }
+  .dark .hover\:bg-gray-50:hover { background: #334155 !important; }
+  .dark .hover\:bg-gray-100:hover { background: #334155 !important; }
+
+  input, textarea, select { color-scheme: light; }
+  .dark input, .dark textarea, .dark select { color-scheme: dark; background: #1e293b; border-color: #334155; color: #f1f5f9; }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  #uploadInput { display: none; }
+  .dropzone-active { border-color: #3b82f6 !important; background: rgba(59,130,246,0.05) !important; }
+
+  /* 诊断详情区块 */
+  .detail-section { margin-bottom: 14px; }
+  .detail-section { margin-bottom: 14px; }
+  .detail-section h4 {
+    font-size: 12px; color: #3b82f6; margin-bottom: 6px;
+    border-bottom: 1px solid #eff6ff; padding-bottom: 4px;
+    font-weight: 600;
+  }
+  .dark .detail-section h4 { border-bottom-color: #1e3a5f; color: #60a5fa; }
+
+  /* 进度条 */
+  .diag-progress { height: 10px; background: #f3f4f6; border-radius: 5px; overflow: hidden; }
+  .dark .diag-progress { background: #1e293b; }
+  .diag-progress-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, #f59e0b, #3b82f6, #10b981); transition: width 0.8s ease; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800 antialiased">
+
+<!-- ==================== TOP NAVIGATION ==================== -->
+<header id="topNav" class="fixed top-0 left-0 right-0 h-16 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-700 z-50 flex items-center justify-between px-4 lg:px-6">
+  <div class="flex items-center gap-4">
+    <button id="sidebarToggle" class="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+      <i data-lucide="menu" class="w-5 h-5"></i>
+    </button>
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center shadow-lg shadow-primary-500/20">
+        <i data-lucide="phone-call" class="w-5 h-5 text-white"></i>
+      </div>
+      <span class="text-xl font-bold gradient-text hidden sm:block">CallCoach</span>
+    </div>
+  </div>
+
+  <div class="hidden md:flex flex-1 max-w-xl mx-8">
+    <div class="relative w-full group">
+      <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary-500 transition-colors"></i>
+      <input type="text" id="globalSearch" placeholder="搜索通话、顾问、报告... 按 / 快速搜索"
+        class="w-full pl-10 pr-12 py-2.5 bg-gray-100 dark:bg-gray-800 border-0 rounded-xl text-sm focus:ring-2 focus:ring-primary-500/20 focus:bg-white dark:focus:bg-gray-700 transition-all placeholder:text-gray-400">
+      <kbd class="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-xs bg-gray-200 dark:bg-gray-700 rounded text-gray-500 font-mono">/</kbd>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-2">
+    <span id="connectionStatus" class="flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500">
+      <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span> 检查连接
+    </span>
+    <button id="themeToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors relative" title="切换主题">
+      <i data-lucide="sun" class="w-5 h-5 hidden dark:block text-amber-400"></i>
+      <i data-lucide="moon" class="w-5 h-5 block dark:hidden text-gray-600"></i>
+    </button>
+    <div class="relative ml-2">
+      <button id="userMenuBtn" class="flex items-center gap-2 p-1.5 pr-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=admin" alt="avatar" class="w-8 h-8 rounded-full bg-primary-100">
+        <span class="text-sm font-medium hidden lg:block">管理员</span>
+        <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 hidden lg:block"></i>
+      </button>
+      <div id="userMenu" class="hidden absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden dropdown-enter z-50">
+        <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+          <p class="text-sm font-semibold">管理员</p>
+          <p class="text-xs text-gray-500">admin@callcoach.com</p>
+        </div>
+        <div class="py-1">
+          <a href="#" class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50"><i data-lucide="settings" class="w-4 h-4 text-gray-400"></i> 系统设置</a>
+          <a href="#" class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50"><i data-lucide="help-circle" class="w-4 h-4 text-gray-400"></i> 帮助中心</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ==================== SIDEBAR ==================== -->
+<aside id="sidebar" class="fixed left-0 top-16 bottom-0 w-60 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 z-40 transition-all duration-300 transform -translate-x-full lg:translate-x-0 flex flex-col">
+  <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+    <button onclick="showPage('dashboard')" class="sidebar-item active w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group" data-page="dashboard">
+      <div class="w-9 h-9 rounded-lg bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center group-hover:bg-primary-100 dark:group-hover:bg-primary-900/40 transition-colors">
+        <i data-lucide="layout-dashboard" class="w-5 h-5 text-primary-600"></i>
+      </div>
+      <span class="sidebar-text">总览</span>
+    </button>
+
+    <button onclick="showPage('analyze')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group" data-page="analyze">
+      <div class="w-9 h-9 rounded-lg bg-success-50 dark:bg-success-900/20 flex items-center justify-center group-hover:bg-success-100 dark:group-hover:bg-success-900/40 transition-colors">
+        <i data-lucide="upload-cloud" class="w-5 h-5 text-success-600"></i>
+      </div>
+      <span class="sidebar-text">上传分析</span>
+    </button>
+
+    <button onclick="showPage('calls')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group" data-page="calls">
+      <div class="w-9 h-9 rounded-lg bg-info-50 dark:bg-info-900/20 flex items-center justify-center group-hover:bg-info-100 dark:group-hover:bg-info-900/40 transition-colors">
+        <i data-lucide="phone" class="w-5 h-5 text-info-600"></i>
+      </div>
+      <span class="sidebar-text">通话列表</span>
+      <span id="callsBadge" class="ml-auto bg-danger-100 dark:bg-danger-900/30 text-danger-600 dark:text-danger-400 text-xs px-2 py-0.5 rounded-full font-medium sidebar-badge hidden">0</span>
+    </button>
+
+    <button onclick="showPage('consultants')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group" data-page="consultants">
+      <div class="w-9 h-9 rounded-lg bg-warning-50 dark:bg-warning-900/20 flex items-center justify-center group-hover:bg-warning-100 dark:group-hover:bg-warning-900/40 transition-colors">
+        <i data-lucide="users" class="w-5 h-5 text-warning-600"></i>
+      </div>
+      <span class="sidebar-text">顾问管理</span>
+    </button>
+
+    <button onclick="showPage('stats')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group" data-page="stats">
+      <div class="w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center group-hover:bg-purple-100 dark:group-hover:bg-purple-900/40 transition-colors">
+        <i data-lucide="bar-chart-3" class="w-5 h-5 text-purple-600"></i>
+      </div>
+      <span class="sidebar-text">统计分析</span>
+    </button>
+
+    <button onclick="showPage('reports')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group" data-page="reports">
+      <div class="w-9 h-9 rounded-lg bg-pink-50 dark:bg-pink-900/20 flex items-center justify-center group-hover:bg-pink-100 dark:group-hover:bg-pink-900/40 transition-colors">
+        <i data-lucide="file-text" class="w-5 h-5 text-pink-600"></i>
+      </div>
+      <span class="sidebar-text">报告中心</span>
+    </button>
+
+    <button onclick="showPage('library')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group" data-page="library">
+      <div class="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center group-hover:bg-amber-100 dark:group-hover:bg-amber-900/40 transition-colors">
+        <i data-lucide="star" class="w-5 h-5 text-amber-600"></i>
+      </div>
+      <span class="sidebar-text">话术库</span>
+    </button>
+
+    <button onclick="showPage('compare')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all group" data-page="compare">
+      <div class="w-9 h-9 rounded-lg bg-cyan-50 dark:bg-cyan-900/20 flex items-center justify-center group-hover:bg-cyan-100 dark:group-hover:bg-cyan-900/40 transition-colors">
+        <i data-lucide="git-compare" class="w-5 h-5 text-cyan-600"></i>
+      </div>
+      <span class="sidebar-text">对比分析</span>
+    </button>
+  </nav>
+
+  <div class="p-3 border-t border-gray-200 dark:border-gray-700">
+    <button id="sidebarCollapse" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+      <i data-lucide="panel-left-close" class="w-5 h-5 sidebar-collapse-icon"></i>
+      <span class="sidebar-text">收起侧边栏</span>
+    </button>
+  </div>
+</aside>
+
+<div id="sidebarOverlay" class="fixed inset-0 bg-black/50 z-30 hidden lg:hidden" onclick="toggleSidebar()"></div>
+
+<!-- ==================== MAIN CONTENT ==================== -->
+<main id="mainContent" class="lg:ml-60 pt-16 min-h-screen transition-all duration-300">
+  <div class="p-4 lg:p-8 max-w-7xl mx-auto">
+
+<!-- ==================== PAGE: DASHBOARD ==================== -->
+<div id="page-dashboard" class="page active page-transition">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white" id="dashboardGreeting">CallCoach 总览</h1>
+      <p class="text-sm text-gray-500 mt-1" id="dashboardDate">加载中...</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="showPage('analyze')" class="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-primary-500/20">
+        <i data-lucide="plus" class="w-4 h-4"></i> 上传通话
+      </button>
+      <button onclick="loadDashboard()" class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-medium transition-colors">
+        <i data-lucide="refresh-cw" class="w-4 h-4"></i> 刷新
+      </button>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8" id="dashboardStats">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 card-hover border border-gray-100 dark:border-gray-700">
+      <div class="flex items-center justify-between mb-4">
+        <div class="w-12 h-12 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center">
+          <i data-lucide="phone" class="w-6 h-6 text-primary-600"></i>
+        </div>
+        <span id="statTotalCallsTrend" class="hidden"></span>
+      </div>
+      <p id="statTotalCalls" class="text-3xl font-bold text-gray-900 dark:text-white">-</p>
+      <p class="text-sm text-gray-500 mt-1">总通话数</p>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 card-hover border border-gray-100 dark:border-gray-700">
+      <div class="flex items-center justify-between mb-4">
+        <div class="w-12 h-12 rounded-xl bg-success-50 dark:bg-success-900/20 flex items-center justify-center">
+          <i data-lucide="check-circle" class="w-6 h-6 text-success-600"></i>
+        </div>
+        <span id="statAnalyzedTrend" class="hidden"></span>
+      </div>
+      <p id="statAnalyzedCalls" class="text-3xl font-bold text-gray-900 dark:text-white">-</p>
+      <p class="text-sm text-gray-500 mt-1">已分析通话</p>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 card-hover border border-gray-100 dark:border-gray-700">
+      <div class="flex items-center justify-between mb-4">
+        <div class="w-12 h-12 rounded-xl bg-warning-50 dark:bg-warning-900/20 flex items-center justify-center">
+          <i data-lucide="users" class="w-6 h-6 text-warning-600"></i>
+        </div>
+      </div>
+      <p id="statConsultants" class="text-3xl font-bold text-gray-900 dark:text-white">-</p>
+      <p class="text-sm text-gray-500 mt-1">顾问人数</p>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 card-hover border border-gray-100 dark:border-gray-700">
+      <div class="flex items-center justify-between mb-4">
+        <div class="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center">
+          <i data-lucide="target" class="w-6 h-6 text-purple-600"></i>
+        </div>
+        <span id="statAvgScoreTrend" class="hidden"></span>
+      </div>
+      <p id="statAvgScore" class="text-3xl font-bold text-gray-900 dark:text-white">-</p>
+      <p class="text-sm text-gray-500 mt-1">平均得分</p>
+    </div>
+  </div>
+
+  <!-- Charts Row 1: Trend + Pending Tasks -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">得分趋势</h3>
+          <p class="text-sm text-gray-500">近30天团队平均得分变化</p>
+        </div>
+        <button onclick="loadDashboard()" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"><i data-lucide="refresh-cw" class="w-4 h-4 text-gray-400"></i></button>
+      </div>
+      <div id="chart-trend" style="width:100%;height:320px;"></div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">待处理任务</h3>
+          <p class="text-sm text-gray-500">需要关注的项目</p>
+        </div>
+        <span id="pendingCount" class="bg-danger-100 dark:bg-danger-900/30 text-danger-600 dark:text-danger-400 text-xs px-2.5 py-1 rounded-full font-medium">0</span>
+      </div>
+      <div id="dashboardTasks" class="space-y-3">
+        <p class="text-sm text-gray-500 py-4 text-center">加载中...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row 2: Ranking + SPIN Radar -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">TOP 顾问排行</h3>
+          <p class="text-sm text-gray-500">综合得分排名</p>
+        </div>
+        <button onclick="showPage('consultants')" class="text-sm text-primary-600 hover:text-primary-700 font-medium">查看全部</button>
+      </div>
+      <div id="dashboardTopConsultants" class="space-y-4">
+        <p class="text-sm text-gray-500 py-4 text-center">加载中...</p>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">SPIN 能力分布</h3>
+          <p class="text-sm text-gray-500">团队各维度平均表现</p>
+        </div>
+      </div>
+      <div id="chart-radar" style="width:100%;height:320px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PAGE: ANALYZE ==================== -->
+<div id="page-analyze" class="page page-transition">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">上传 & 分析</h1>
+      <p class="text-sm text-gray-500 mt-1">上传通话记录（.txt / .mp3 / .wav），AI 自动转写并进行 SPIN 分析</p>
+    </div>
+  </div>
+
+  <!-- Upload Area -->
+  <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 mb-6">
+    <div id="dropZone" class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl p-12 text-center hover:border-primary-400 dark:hover:border-primary-500 transition-colors cursor-pointer group">
+      <div class="w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary-100 dark:group-hover:bg-primary-900/40 transition-colors">
+        <i data-lucide="upload-cloud" class="w-8 h-8 text-primary-600"></i>
+      </div>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">拖拽文件到此处，或点击上传</h3>
+      <p class="text-sm text-gray-500 mb-4">支持 .txt 文本 & 录音（.mp3, .wav, .m4a）· 批量上传</p>
+      <input type="file" id="uploadInput" accept=".txt,.mp3,.wav,.m4a,.flac,.ogg,.aac" multiple style="display:none">
+    </div>
+  </div>
+
+  <!-- Selected Files -->
+  <div id="selectedFiles" class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 mb-6 hidden">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-sm font-semibold text-gray-900 dark:text-white" id="filesCount">已选择 0 个文件</h3>
+      <button onclick="clearFiles()" class="text-xs text-danger-600 hover:text-danger-700 font-medium">清空</button>
+    </div>
+    <div id="fileList" class="space-y-2"></div>
+  </div>
+
+  <!-- Analysis Settings -->
+  <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 mb-6">
+    <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+      <i data-lucide="settings-2" class="w-4 h-4 text-gray-400"></i> 分析设置
+    </h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">顾问</label>
+        <select id="consultantSelect" class="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:bg-gray-700">
+          <option value="">从文件名自动识别</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">AI 模型</label>
+        <select id="llmSelect" class="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:bg-gray-700">
+          <option value="openai_compatible" selected>DeepSeek（推荐，云端，按量计费）</option>
+          <option value="ollama">Ollama 本地模型（免费，离线可用）</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="flex items-center gap-3">
+    <button id="startAnalysisBtn" onclick="startAnalysis()" class="flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-primary-500/20 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+      <i data-lucide="rocket" class="w-4 h-4"></i> 开始分析
+    </button>
+  </div>
+
+  <!-- Analysis Queue -->
+  <div id="analysisQueue" class="mt-8 hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-sm font-semibold text-gray-900 dark:text-white" id="queueTitle">分析队列</h3>
+      </div>
+      <div id="queueList" class="space-y-3"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PAGE: CALLS ==================== -->
+<div id="page-calls" class="page page-transition">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">通话列表</h1>
+      <p class="text-sm text-gray-500 mt-1">管理所有通话录音和分析结果</p>
+    </div>
+    <button onclick="loadCalls()" class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm text-gray-500">
+      <i data-lucide="refresh-cw" class="w-4 h-4"></i> 刷新
+    </button>
+  </div>
+
+  <!-- 筛选栏 -->
+  <div class="flex flex-col sm:flex-row gap-3 mb-4" id="callsFilterBar">
+    <div class="relative flex-1">
+      <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+      <input type="text" id="callsSearchInput" placeholder="搜索顾问名或通话ID..." oninput="filterAndRenderCalls()"
+        class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all">
+    </div>
+    <select id="callsConsultantFilter" onchange="filterAndRenderCalls()"
+      class="px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50">
+      <option value="">全部顾问</option>
+    </select>
+    <select id="callsStatusFilter" onchange="filterAndRenderCalls()"
+      class="px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50">
+      <option value="">全部状态</option>
+      <option value="analyzed">已分析</option>
+      <option value="pending">待分析</option>
+    </select>
+    <select id="callsSortBy" onchange="filterAndRenderCalls()"
+      class="px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50">
+      <option value="date-desc">日期↓ 最新</option>
+      <option value="date-asc">日期↑ 最早</option>
+      <option value="score-desc">得分↓ 高→低</option>
+      <option value="score-asc">得分↑ 低→高</option>
+    </select>
+  </div>
+
+  <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm" id="callsTable">
+        <thead>
+          <tr class="border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/30">
+            <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">顾问</th>
+            <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">日期</th>
+            <th class="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300">S</th>
+            <th class="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300">P</th>
+            <th class="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300">I</th>
+            <th class="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300">N</th>
+            <th class="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300">得分</th>
+            <th class="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300">费用</th>
+            <th class="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300">状态</th>
+            <th class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-700" id="callsTableBody">
+          <tr><td colspan="10" class="px-4 py-12 text-center text-gray-500">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 分页控件 -->
+  <div class="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4" id="callsPagination">
+    <span class="text-sm text-gray-500" id="callsPageInfo">共 0 条</span>
+    <div class="flex items-center gap-1" id="callsPageButtons"></div>
+  </div>
+</div>
+
+<!-- ==================== PAGE: CONSULTANTS ==================== -->
+<div id="page-consultants" class="page page-transition">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">顾问管理</h1>
+      <p class="text-sm text-gray-500 mt-1">查看顾问详情、诊断报告和教练计划</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <!-- 搜索 -->
+      <div class="relative">
+        <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        <input type="text" id="consultantSearch" placeholder="搜索顾问姓名或ID..." oninput="filterConsultants()"
+          class="pl-9 pr-4 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none w-56 text-gray-700 dark:text-gray-300 placeholder-gray-400 transition-all">
+      </div>
+      <!-- 添加顾问 -->
+      <button onclick="addConsultant()" class="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-primary-500/20">
+        <i data-lucide="user-plus" class="w-4 h-4"></i> 添加顾问
+      </button>
+      <button onclick="loadConsultants()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="刷新">
+        <i data-lucide="refresh-cw" class="w-4 h-4 text-gray-500"></i>
+      </button>
+    </div>
+  </div>
+
+  <div id="consultantCardsGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <p class="col-span-2 text-center text-gray-500 py-12">加载中...</p>
+  </div>
+</div>
+
+<!-- ==================== PAGE: STATS ==================== -->
+<div id="page-stats" class="page page-transition">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">统计分析</h1>
+      <p class="text-sm text-gray-500 mt-1">团队数据深度分析</p>
+    </div>
+    <button onclick="loadStats()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><i data-lucide="refresh-cw" class="w-4 h-4 text-gray-500"></i></button>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">SPIN 维度分布</h3>
+      <p class="text-sm text-gray-500 mb-4">团队各维度得分分布</p>
+      <div id="chart-bar" style="width:100%;height:300px;"></div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">得分分布</h3>
+      <p class="text-sm text-gray-500 mb-4">通话得分区间统计</p>
+      <div id="chart-pie" style="width:100%;height:300px;"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ==================== PAGE: REPORTS ==================== -->
+<div id="page-reports" class="page page-transition">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">报告中心</h1>
+      <p class="text-sm text-gray-500 mt-1">生成和管理分析报告</p>
+    </div>
+    <button onclick="loadReports()" class="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-primary-500/20">
+      <i data-lucide="refresh-cw" class="w-4 h-4"></i> 刷新
+    </button>
+  </div>
+  <div id="reportsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <p class="col-span-3 text-center text-gray-500 py-12">加载中...</p>
+  </div>
+</div>
+
+<!-- ==================== PAGE: LIBRARY ==================== -->
+<div id="page-library" class="page page-transition">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">优秀话术库</h1>
+      <p class="text-sm text-gray-500 mt-1">收录高得分通话中的优秀话术片段</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="showLibraryUpload()" class="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium transition-all">
+        <i data-lucide="upload" class="w-4 h-4"></i> 上传话术
+      </button>
+      <button onclick="aiRecommendScripts()" class="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-primary-500/25">
+        <i data-lucide="sparkles" class="w-4 h-4"></i> AI 推荐话术
+      </button>
+    </div>
+  </div>
+
+  <!-- 上传话术弹窗 -->
+  <div id="libraryUploadModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onclick="if(event.target===this)this.classList.add('hidden')">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-6 border border-gray-100 dark:border-gray-700">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white">上传话术</h3>
+        <button onclick="document.getElementById('libraryUploadModal').classList.add('hidden')" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="space-y-4">
+        <!-- 音频上传 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">上传音频（可选）</label>
+          <div class="relative">
+            <input type="file" id="libraryAudioFile" accept="audio/*" onchange="handleLibraryAudioSelect(this)" class="hidden">
+            <button onclick="document.getElementById('libraryAudioFile').click()" class="w-full flex items-center gap-3 px-4 py-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-primary-400 dark:hover:border-primary-500 transition-all text-sm text-gray-500 dark:text-gray-400">
+              <i data-lucide="music" class="w-5 h-5 flex-shrink-0"></i>
+              <span id="libraryAudioLabel">选择或拖拽音频文件（支持 mp3/wav/m4a）</span>
+            </button>
+          </div>
+          <!-- 音频预览播放器 -->
+          <div id="libraryAudioPreview" class="hidden mt-2 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl">
+            <audio id="libraryAudioPreviewEl" controls class="w-full h-8" preload="metadata"></audio>
+          </div>
+        </div>
+        <!-- 话术文本 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">话术原文（可上传txt或直接输入）</label>
+          <div class="relative mb-2">
+            <input type="file" id="libraryTxtFile" accept=".txt,.text" onchange="handleLibraryTxtSelect(this)" class="hidden">
+            <button onclick="document.getElementById('libraryTxtFile').click()" class="w-full flex items-center gap-2 px-4 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-primary-400 dark:hover:border-primary-500 transition-all text-xs text-gray-500 dark:text-gray-400">
+              <i data-lucide="file-text" class="w-4 h-4"></i>
+              <span id="libraryTxtLabel">上传txt文件（自动提取文本）</span>
+            </button>
+          </div>
+          <textarea id="libraryScriptText" rows="5" placeholder="请输入或粘贴话术原文..." class="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 resize-none transition-all"></textarea>
+        </div>
+        <!-- 元信息 -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">场景描述</label>
+            <input id="librarySceneInput" type="text" placeholder="例如：家长说太贵了" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/20">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">评分 (0-100)</label>
+            <input id="libraryScoreInput" type="number" min="0" max="100" value="80" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/20">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">家长类型</label>
+            <input id="libraryParentTypeInput" type="text" placeholder="价格敏感型" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/20">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">问题类型</label>
+            <input id="libraryProblemTypeInput" type="text" placeholder="价格异议" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/20">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">为什么好（可选）</label>
+          <input id="libraryWhyGoodInput" type="text" placeholder="简述这条话术好的原因" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/20">
+        </div>
+        <button onclick="submitLibraryUpload()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-medium transition-all">
+          <i data-lucide="check" class="w-4 h-4"></i> 提交话术
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI 推荐提示 -->
+  <div id="libraryRecommendBox" class="hidden bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl px-5 py-4 mb-5">
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex items-start gap-3 flex-1">
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-800/50 text-blue-700 dark:text-blue-300 text-xs font-medium flex-shrink-0">
+          <i data-lucide="sparkles" class="w-3 h-3"></i> AI 推荐
+        </span>
+        <p class="text-sm text-blue-800 dark:text-blue-200" id="libraryRecommendText">基于张顾问的短板，为您推荐以下话术练习</p>
+      </div>
+      <button onclick="document.getElementById('libraryRecommendBox').classList.add('hidden')" class="p-1 rounded-lg hover:bg-blue-200/50 dark:hover:bg-blue-800/50 text-blue-500 transition-colors">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- 搜索与筛选 -->
+  <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
+    <div class="relative flex-1">
+      <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+      <input type="text" id="librarySearch" placeholder="搜索话术内容..." oninput="filterLibrary()" class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all">
+    </div>
+    <select id="libraryParentType" onchange="filterLibrary()" class="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary-500/20">
+      <option value="">全部家长类型</option>
+      <option value="焦虑型">焦虑型</option>
+      <option value="佛系型">佛系型</option>
+      <option value="鸡娃型">鸡娃型</option>
+      <option value="价格敏感型">价格敏感型</option>
+      <option value="观望型">观望型</option>
+    </select>
+    <select id="libraryProblemType" onchange="filterLibrary()" class="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary-500/20">
+      <option value="">全部问题类型</option>
+      <option value="价格异议">价格异议</option>
+      <option value="效果质疑">效果质疑</option>
+      <option value="时间冲突">时间冲突</option>
+      <option value="竞品对比">竞品对比</option>
+    </select>
+    <select id="libraryMinScore" onchange="filterLibrary()" class="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary-500/20">
+      <option value="80">得分: 80+</option>
+      <option value="60">得分: 60+</option>
+      <option value="90">得分: 90+</option>
+      <option value="70">得分: 70+</option>
+    </select>
+  </div>
+
+  <div id="libraryContent" class="space-y-4">
+    <p class="text-center text-gray-500 py-12">加载中...</p>
+  </div>
+</div>
+
+<!-- ==================== PAGE: COMPARE ==================== -->
+<div id="page-compare" class="page page-transition">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">对比分析</h1>
+      <p class="text-sm text-gray-500 mt-1">多维度对比顾问表现，发现差距与优势</p>
+    </div>
+  </div>
+
+  <!-- 对比模式 -->
+  <div class="flex bg-gray-100 dark:bg-gray-800 rounded-2xl p-1.5 mb-5 w-fit">
+    <button id="compareMode1" onclick="switchCompareMode('1v1')" class="px-4 py-2 rounded-xl text-sm font-medium bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm transition-all">顾问 vs 顾问</button>
+    <button id="compareMode2" onclick="switchCompareMode('1vT')" class="px-4 py-2 rounded-xl text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all">顾问 vs 团队</button>
+    <button id="compareMode3" onclick="switchCompareMode('GvG')" class="px-4 py-2 rounded-xl text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all">小组 vs 小组</button>
+  </div>
+
+  <!-- 顾问选择器 -->
+  <div id="compareSelector1v1" class="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700 mb-6">
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-3 flex-1">
+        <div class="w-3.5 h-3.5 rounded-full bg-blue-500 flex-shrink-0"></div>
+        <select id="compareC1" class="flex-1 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" onchange="loadCompare()">
+          <option value="">-- 请选择顾问 --</option>
+        </select>
+      </div>
+      <span class="text-lg font-bold text-gray-300 dark:text-gray-600">VS</span>
+      <div class="flex items-center gap-3 flex-1">
+        <div class="w-3.5 h-3.5 rounded-full bg-green-500 flex-shrink-0"></div>
+        <select id="compareC2" class="flex-1 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" onchange="loadCompare()">
+          <option value="">-- 请选择顾问 --</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div id="compareSelector1vT" class="hidden bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700 mb-6">
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-3 flex-1">
+        <div class="w-3.5 h-3.5 rounded-full bg-blue-500 flex-shrink-0"></div>
+        <select id="compareC1Team" class="flex-1 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm dark:bg-gray-700 dark:text-white outline-none" onchange="loadCompare()">
+          <option value="">-- 请选择顾问 --</option>
+        </select>
+      </div>
+      <span class="text-lg font-bold text-gray-300 dark:text-gray-600">VS</span>
+      <div class="flex items-center gap-3 flex-1">
+        <span class="flex items-center gap-2 flex-1 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20">
+          <i data-lucide="users" class="w-4 h-4"></i> 团队平均
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图表区域 -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+      <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-4">能力雷达图对比</h3>
+      <div id="chart-compare-radar" style="width:100%;height:340px;"></div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+      <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-4">各维度得分对比</h3>
+      <div id="chart-compare-bar" style="width:100%;height:340px;"></div>
+    </div>
+  </div>
+
+  <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 mb-6">
+    <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-4">得分趋势对比</h3>
+    <div id="chart-compare-trend" style="width:100%;height:340px;"></div>
+  </div>
+
+  <!-- 顾问能力热力图 -->
+  <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 mb-6">
+    <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-2">顾问能力热力图</h3>
+    <p class="text-xs text-gray-500 mb-4">各顾问在各维度的表现对比</p>
+    <div id="chart-heatmap" style="width:100%;height:350px;"></div>
+  </div>
+
+  <!-- 差距分析 -->
+  <div id="compareGapAnalysis" class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 hidden">
+    <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-4">差距分析</h3>
+    <div id="compareGapContent" class="space-y-3"></div>
+  </div>
+</div>
+
+<!-- ==================== TOAST ==================== -->
+<div id="toastContainer" class="fixed top-20 right-6 z-50 space-y-2"></div>
+
+<!-- 通话详情弹窗 -->
+<div id="callDetailModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4" onclick="if(event.target===this) closeCallDetail()">
+  <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col" onclick="event.stopPropagation()">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white" id="detailTitle">通话详情</h3>
+      <button onclick="closeCallDetail()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+        <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+      </button>
+    </div>
+    <div class="flex-1 overflow-y-auto p-6 space-y-5" id="callDetailContent">
+      <p class="text-gray-500 text-center py-8">加载中...</p>
+    </div>
+  </div>
+</div>
+
+</div><!-- end main content padding -->
+</main>
+
+<!-- ==================== JAVASCRIPT ==================== -->
+<script>
+// ==================== CONFIG ====================
+// ⚠️ 部署时改为你的 Render 后端地址
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : '';
+
+// ==================== STATE ====================
+let selectedFiles = [];
+let allConsultants = [];
+let allCalls = [];
+let allReports = [];
+
+// ==================== INIT ====================
+lucide.createIcons();
+
+// ==================== THEME ====================
+const themeToggle = document.getElementById('themeToggle');
+const html = document.documentElement;
+
+function updateThemeIcon() {
+  const isDark = html.classList.contains('dark');
+  themeToggle.querySelector('[data-lucide="sun"]').classList.toggle('hidden', !isDark);
+  themeToggle.querySelector('[data-lucide="moon"]').classList.toggle('hidden', isDark);
+}
+
+if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+  html.classList.add('dark');
+  html.setAttribute('data-theme', 'dark');
+}
+updateThemeIcon();
+
+themeToggle.addEventListener('click', () => {
+  html.classList.toggle('dark');
+  html.setAttribute('data-theme', html.classList.contains('dark') ? 'dark' : 'light');
+  updateThemeIcon();
+  lucide.createIcons();
+  setTimeout(initCharts, 100);
+});
+
+// ==================== API HELPER ====================
+async function api(path, options = {}) {
+  try {
+    const res = await fetch(API_BASE + path, options);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.error('API Error:', path, e);
+    throw e;
+  }
+}
+
+// ==================== CONNECTION CHECK ====================
+async function checkConnection() {
+  const el = document.getElementById('connectionStatus');
+  try {
+    const data = await api('/api/calls');
+    if (Array.isArray(data)) {
+      el.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-success-500"></span> 已连接';
+      el.className = 'flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-success-50 dark:bg-success-900/20 text-success-600';
+      return true;
+    }
+  } catch (e) {
+    el.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-danger-500"></span> 未连接';
+    el.className = 'flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-danger-50 dark:bg-danger-900/20 text-danger-600';
+    return false;
+  }
+}
+
+// ==================== SIDEBAR ====================
+const sidebar = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebarToggle');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+const sidebarCollapse = document.getElementById('sidebarCollapse');
+const mainContent = document.getElementById('mainContent');
+let sidebarCollapsed = false;
+
+function toggleSidebar() {
+  if (window.innerWidth < 1024) {
+    sidebar.classList.toggle('-translate-x-full');
+    sidebarOverlay.classList.toggle('hidden');
+  }
+}
+sidebarToggle.addEventListener('click', toggleSidebar);
+
+sidebarCollapse.addEventListener('click', () => {
+  sidebarCollapsed = !sidebarCollapsed;
+  if (sidebarCollapsed) {
+    sidebar.style.width = '72px';
+    sidebar.querySelectorAll('.sidebar-text').forEach(el => el.style.display = 'none');
+    sidebar.querySelectorAll('.sidebar-badge').forEach(el => el.style.display = 'none');
+    mainContent.style.marginLeft = '72px';
+    sidebarCollapse.querySelector('span').textContent = '';
+  } else {
+    sidebar.style.width = '240px';
+    sidebar.querySelectorAll('.sidebar-text').forEach(el => el.style.display = '');
+    sidebar.querySelectorAll('.sidebar-badge').forEach(el => el.style.display = '');
+    mainContent.style.marginLeft = '240px';
+    sidebarCollapse.querySelector('span').textContent = '收起侧边栏';
+  }
+});
+
+// ==================== PAGE NAVIGATION ====================
+const pageLoaders = {
+  dashboard: loadDashboard,
+  analyze: initAnalyzePage,
+  calls: loadCalls,
+  consultants: loadConsultants,
+  stats: loadStats,
+  reports: loadReports,
+  library: loadLibrary,
+  compare: initCompareSelectors
+};
+
+function showPage(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + pageId).classList.add('active');
+
+  document.querySelectorAll('.sidebar-item').forEach(item => {
+    item.classList.remove('active');
+    if (item.dataset.page === pageId) item.classList.add('active');
+  });
+
+  if (window.innerWidth < 1024) {
+    sidebar.classList.add('-translate-x-full');
+    sidebarOverlay.classList.add('hidden');
+  }
+
+  setTimeout(initCharts, 100);
+  lucide.createIcons();
+
+  // Auto-load data for the selected page
+  if (pageLoaders[pageId]) {
+    pageLoaders[pageId]();
+  }
+}
+
+// ==================== USER MENU ====================
+const userMenuBtn = document.getElementById('userMenuBtn');
+const userMenu = document.getElementById('userMenu');
+userMenuBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  userMenu.classList.toggle('hidden');
+});
+
+// ==================== TOAST ====================
+function showToast(message, type = 'info') {
+  const toast = document.createElement('div');
+  const colors = {
+    success: 'bg-success-50 dark:bg-success-900/20 border-success-200 dark:border-success-900/30 text-success-800 dark:text-success-300',
+    error: 'bg-danger-50 dark:bg-danger-900/20 border-danger-200 dark:border-danger-900/30 text-danger-800 dark:text-danger-300',
+    warning: 'bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-900/30 text-warning-800 dark:text-warning-300',
+    info: 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-900/30 text-primary-800 dark:text-primary-300'
+  };
+  toast.className = `toast-enter px-4 py-3 rounded-xl border shadow-lg ${colors[type]} flex items-center gap-3 max-w-sm`;
+  const icons = { success: 'check-circle', error: 'alert-circle', warning: 'alert-triangle', info: 'info' };
+  toast.innerHTML = `<i data-lucide="${icons[type]}" class="w-5 h-5 flex-shrink-0"></i><span class="text-sm font-medium">${message}</span>`;
+  document.getElementById('toastContainer').appendChild(toast);
+  lucide.createIcons();
+  setTimeout(() => toast.remove(), 4000);
+}
+
+// ==================== ANALYZE PAGE INIT ====================
+async function initAnalyzePage() {
+  // Ensure consultant dropdown is populated with latest data
+  const consultantSelect = document.getElementById('consultantSelect');
+  if (consultantSelect.options.length <= 1) {
+    try {
+      const consultants = await api('/api/consultants');
+      allConsultants = consultants || [];
+      const options = ['<option value="">从文件名自动识别</option>'];
+      allConsultants.forEach(c => {
+        const name = c.name || c.consultant_name || '';
+        if (name) options.push(`<option value="${name}">${name}</option>`);
+      });
+      consultantSelect.innerHTML = options.join('');
+    } catch (e) {
+      // Consultant dropdown will show "从文件名自动识别" as fallback
+    }
+  }
+  lucide.createIcons();
+}
+
+// ==================== FILE UPLOAD ====================
+const dropZone = document.getElementById('dropZone');
+const uploadInput = document.getElementById('uploadInput');
+const selectedFilesDiv = document.getElementById('selectedFiles');
+const fileList = document.getElementById('fileList');
+const filesCount = document.getElementById('filesCount');
+const startAnalysisBtn = document.getElementById('startAnalysisBtn');
+
+dropZone.addEventListener('click', () => uploadInput.click());
+uploadInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+dropZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropZone.classList.add('dropzone-active');
+});
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dropzone-active'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dropzone-active');
+  handleFiles(e.dataTransfer.files);
+});
+
+function handleFiles(fileListInput) {
+  const ALLOWED = ['.txt', '.mp3', '.wav', '.m4a', '.flac', '.ogg', '.aac'];
+  const newFiles = Array.from(fileListInput).filter(f => {
+    const name = f.name.toLowerCase();
+    return ALLOWED.some(ext => name.endsWith(ext));
+  });
+  if (newFiles.length === 0) {
+    showToast('请选择 .txt / .mp3 / .wav 格式的文件', 'warning');
+    return;
+  }
+  selectedFiles = [...selectedFiles, ...newFiles];
+  renderFileList();
+}
+
+function renderFileList() {
+  if (selectedFiles.length === 0) {
+    selectedFilesDiv.classList.add('hidden');
+    startAnalysisBtn.disabled = true;
+    return;
+  }
+  selectedFilesDiv.classList.remove('hidden');
+  filesCount.textContent = `已选择 ${selectedFiles.length} 个文件`;
+  fileList.innerHTML = selectedFiles.map((f, i) => {
+    const isAudio = /\.(mp3|wav|m4a|flac|ogg|aac)$/i.test(f.name);
+    const iconName = isAudio ? 'mic' : 'file-text';
+    const iconBg = isAudio ? 'bg-warning-100 dark:bg-warning-900/30' : 'bg-primary-100 dark:bg-primary-900/30';
+    const iconColor = isAudio ? 'text-warning-600' : 'text-primary-600';
+    const typeLabel = isAudio ? '录音' : '文本';
+    return `
+    <div class="flex items-center gap-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50">
+      <div class="w-10 h-10 rounded-lg ${iconBg} flex items-center justify-center">
+        <i data-lucide="${iconName}" class="w-5 h-5 ${iconColor}"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-medium text-gray-900 dark:text-white truncate">${f.name}</p>
+        <p class="text-xs text-gray-500">${(f.size / 1024).toFixed(1)} KB · ${typeLabel}</p>
+      </div>
+      <button onclick="removeFile(${i})" class="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"><i data-lucide="x" class="w-4 h-4 text-gray-400"></i></button>
+    </div>
+  `}).join('');
+  startAnalysisBtn.disabled = false;
+  lucide.createIcons();
+}
+
+function removeFile(index) {
+  selectedFiles.splice(index, 1);
+  renderFileList();
+}
+
+function clearFiles() {
+  selectedFiles = [];
+  uploadInput.value = '';
+  renderFileList();
+}
+
+// ==================== ANALYSIS ====================
+const analysisQueue = document.getElementById('analysisQueue');
+const queueList = document.getElementById('queueList');
+const queueTitle = document.getElementById('queueTitle');
+let analysisTasks = [];
+
+async function startAnalysis() {
+  if (selectedFiles.length === 0) {
+    showToast('请先选择要分析的文件', 'warning');
+    return;
+  }
+
+  const consultantSelect = document.getElementById('consultantSelect');
+  const llmSelect = document.getElementById('llmSelect');
+  const consultantName = consultantSelect.value;
+  const llmBackend = llmSelect.value;
+
+  startAnalysisBtn.disabled = true;
+  startAnalysisBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> 上传中...';
+  lucide.createIcons();
+
+  analysisQueue.classList.remove('hidden');
+  analysisTasks = [];
+
+  for (const file of selectedFiles) {
+    const taskId = Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+    analysisTasks.push({ id: taskId, file, status: 'uploading', progress: 0, consultantName, llmBackend });
+  }
+
+  renderQueue();
+
+  for (const task of analysisTasks) {
+    try {
+      // Step 1: Upload
+      updateTaskStatus(task.id, 'uploading', 30);
+      const formData = new FormData();
+      formData.append('files', task.file);
+      if (task.consultantName) formData.append('consultant_name', task.consultantName);
+      const uploadResult = await fetch(API_BASE + '/api/upload', { method: 'POST', body: formData });
+      const uploadData = await uploadResult.json();
+      if (!uploadResult.ok) throw new Error(uploadData.error || '上传失败');
+
+      // Step 2: Run Pipeline
+      updateTaskStatus(task.id, 'analyzing', 50);
+      const pipelineResult = await fetch(API_BASE + '/api/run-pipeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          files: (uploadData.files || []).map(f => typeof f === 'string' ? f : (f.path || f.saved_name || '')),
+          consultant_id: uploadData.consultant_id || task.consultantName,
+          consultant_name: task.consultantName,
+          llm_backend: task.llmBackend
+        })
+      });
+      const pipelineData = await pipelineResult.json();
+      if (!pipelineResult.ok) throw new Error(pipelineData.error || '分析失败');
+      // 即使 HTTP 200，也要检查 errors 数组（如 LLM API Key 无效）
+      if (pipelineData.errors && pipelineData.errors.length > 0) {
+        const errMsg = pipelineData.errors.map(e => e.error).join('; ');
+        throw new Error(errMsg);
+      }
+
+      updateTaskStatus(task.id, 'done', 100);
+    } catch (e) {
+      updateTaskStatus(task.id, 'error', 0, e.message);
+    }
+  }
+
+  clearFiles();
+  startAnalysisBtn.disabled = false;
+  startAnalysisBtn.innerHTML = '<i data-lucide="rocket" class="w-4 h-4"></i> 开始分析';
+  lucide.createIcons();
+
+  const errors = analysisTasks.filter(t => t.status === 'error');
+  const done = analysisTasks.filter(t => t.status === 'done');
+  if (errors.length === 0) {
+    showToast(`全部 ${done.length} 个文件分析完成！`, 'success');
+  } else {
+    showToast(`${done.length} 成功，${errors.length} 失败`, 'warning');
+  }
+}
+
+function updateTaskStatus(id, status, progress, errorMsg) {
+  const task = analysisTasks.find(t => t.id === id);
+  if (!task) return;
+  task.status = status;
+  task.progress = progress;
+  task.error = errorMsg;
+  renderQueue();
+}
+
+function renderQueue() {
+  const active = analysisTasks.filter(t => t.status === 'uploading' || t.status === 'analyzing');
+  const done = analysisTasks.filter(t => t.status === 'done');
+  const errors = analysisTasks.filter(t => t.status === 'error');
+  queueTitle.textContent = `分析队列 (${active.length} 个任务运行中，${done.length} 完成)`;
+
+  queueList.innerHTML = analysisTasks.map(t => {
+    const statusText = { uploading: '上传中', analyzing: '分析中', done: '已完成', error: '失败' };
+    const statusColor = { uploading: 'text-primary-600', analyzing: 'text-primary-600', done: 'text-success-600', error: 'text-danger-600' };
+    const bgColor = t.status === 'error' ? 'bg-danger-50 dark:bg-danger-900/10' : 'bg-gray-50 dark:bg-gray-700/50';
+    return `
+      <div class="p-4 rounded-xl ${bgColor}">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-3">
+            <i data-lucide="${t.status === 'error' ? 'alert-circle' : 'file-text'}" class="w-4 h-4 ${t.status === 'error' ? 'text-danger-500' : 'text-primary-600'}"></i>
+            <span class="text-sm font-medium text-gray-900 dark:text-white">${t.file.name}</span>
+          </div>
+          <span class="text-xs ${statusColor[t.status]} font-medium">${statusText[t.status]} ${t.status !== 'error' ? t.progress + '%' : ''}</span>
+        </div>
+        ${t.status === 'error' ? `<p class="text-xs text-danger-600">${t.error}</p>` : ''}
+        ${t.status === 'uploading' || t.status === 'analyzing' ? `
+        <div class="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden mb-2">
+          <div class="h-full bg-primary-500 rounded-full progress-bar" style="width:${t.progress}%"></div>
+        </div>
+        <div class="flex items-center gap-2">
+          <i data-lucide="loader" class="w-3 h-3 text-primary-500 animate-spin"></i>
+          <span class="text-xs text-gray-500">${t.status === 'uploading' ? '上传文件中...' : 'AI 分析中...'}</span>
+        </div>` : ''}
+      </div>
+    `;
+  }).join('');
+  lucide.createIcons();
+}
+
+// ==================== DASHBOARD ====================
+async function loadDashboard() {
+  document.getElementById('dashboardDate').textContent = '正在加载数据...';
+
+  try {
+    const [calls, stats, consultants] = await Promise.all([
+      api('/api/calls').catch(() => []),
+      api('/api/stats').catch(() => null),
+      api('/api/consultants').catch(() => [])
+    ]);
+
+    allCalls = calls || [];
+    const s = stats || {};
+    const analyzedCalls = allCalls.filter(c => c.has_analysis);
+
+    // ---- 1. 统计卡片（带变化趋势） ----
+    document.getElementById('statTotalCalls').textContent = s.total_calls != null ? s.total_calls : allCalls.length;
+    document.getElementById('statAnalyzedCalls').textContent = s.analyzed_calls != null ? s.analyzed_calls : analyzedCalls.length;
+    document.getElementById('statConsultants').textContent = s.consultant_count != null ? s.consultant_count : (consultants || []).length;
+    document.getElementById('statAvgScore').textContent = s.avg_score ? s.avg_score : '-';
+
+    // 趋势标注（对比上周）
+    const pws = s.prev_week_stats;
+    function renderTrend(elId, currentVal, prevVal, isPercentage) {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      if (prevVal == null || prevVal === 0) { el.className = 'hidden'; return; }
+      const diff = currentVal - prevVal;
+      const pct = isPercentage ? diff.toFixed(1) + '%' : (diff > 0 ? '+' : '') + diff;
+      if (diff >= 0) {
+        el.innerHTML = '<span class="flex items-center gap-1 text-xs font-medium text-success-600 bg-success-50 dark:bg-success-900/20 px-2 py-1 rounded-full"><i data-lucide="trending-up" class="w-3 h-3"></i> ' + pct + '</span>';
+      } else {
+        el.innerHTML = '<span class="flex items-center gap-1 text-xs font-medium text-danger-600 bg-danger-50 dark:bg-danger-900/20 px-2 py-1 rounded-full"><i data-lucide="trending-down" class="w-3 h-3"></i> ' + pct + '</span>';
+      }
+      el.classList.remove('hidden');
+    }
+    if (pws) {
+      renderTrend('statTotalCallsTrend', s.total_calls, pws.call_count, false);
+      renderTrend('statAnalyzedTrend', s.analyzed_calls, pws.call_count, false);
+      renderTrend('statAvgScoreTrend', s.avg_score, pws.avg_score, false);
+    }
+
+    // ---- 2. 待处理任务（从 warnings + calls 派生） ----
+    const warnings = s.consultant_warnings || [];
+    const pendingCalls = allCalls.filter(c => !c.has_analysis);
+    const pendingCount = pendingCalls.length + warnings.length;
+    document.getElementById('pendingCount').textContent = pendingCount;
+
+    let tasksHtml = '';
+    if (pendingCalls.length > 0) {
+      tasksHtml += `
+        <div class="flex items-start gap-3 p-3 rounded-xl bg-danger-50 dark:bg-danger-900/10 border border-danger-100 dark:border-danger-900/20">
+          <div class="w-8 h-8 rounded-lg bg-danger-100 dark:bg-danger-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <i data-lucide="alert-circle" class="w-4 h-4 text-danger-600"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 dark:text-white">${pendingCalls.length}通通话待分析</p>
+            <p class="text-xs text-gray-500 mt-0.5">已上传但尚未进行 AI 分析</p>
+          </div>
+          <button onclick="showPage('analyze')" class="text-xs text-primary-600 hover:text-primary-700 font-medium whitespace-nowrap">立即分析</button>
+        </div>`;
+    }
+    warnings.forEach(w => {
+      tasksHtml += `
+        <div class="flex items-start gap-3 p-3 rounded-xl bg-warning-50 dark:bg-warning-900/10 border border-warning-100 dark:border-warning-900/20">
+          <div class="w-8 h-8 rounded-lg bg-warning-100 dark:bg-warning-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <i data-lucide="trending-down" class="w-4 h-4 text-warning-600"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 dark:text-white">${w.consultant_name} 连续低分预警</p>
+            <p class="text-xs text-gray-500 mt-0.5">连续${w.consecutive_low}通低于60分，最新${w.latest_score}分</p>
+          </div>
+          <button onclick="showPage('consultants')" class="text-xs text-primary-600 hover:text-primary-700 font-medium whitespace-nowrap">查看</button>
+        </div>`;
+    });
+    if (!tasksHtml) {
+      tasksHtml = '<p class="text-sm text-gray-500 py-4 text-center">暂无待处理项目 ✓</p>';
+    }
+    document.getElementById('dashboardTasks').innerHTML = tasksHtml;
+
+    // ---- 3. TOP 顾问排行 ----
+    const comp = s.consultant_comparison || [];
+    const ranked = comp.sort((a, b) => (b.avg_score || 0) - (a.avg_score || 0)).slice(0, 5);
+    const colors = ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#06b6d4'];
+    const medals = ['amber', 'gray', 'orange', 'gray', 'gray'];
+    document.getElementById('dashboardTopConsultants').innerHTML = ranked.length > 0
+      ? ranked.map((r, i) => {
+          const avg = r.avg_score || 0;
+          const color = colors[i];
+          return `
+        <div class="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer" onclick="showPage('consultants')">
+          <span class="w-7 h-7 rounded-full bg-${medals[i]}-100 dark:bg-${medals[i]}-900/30 text-${medals[i]}-700 dark:text-${medals[i]}-300 text-xs font-bold flex items-center justify-center">${i + 1}</span>
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(r.consultant_name || r.consultant_id)}" class="w-10 h-10 rounded-full bg-gray-100">
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">${r.consultant_name || r.consultant_id}</p>
+            <p class="text-xs text-gray-500">${r.call_count}通 · 最高 ${r.max_score} 最低 ${r.min_score}</p>
+          </div>
+          <div class="text-right">
+            <span class="text-lg font-bold" style="color:${color}">${avg}</span>
+            <div class="w-24 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full mt-1 overflow-hidden">
+              <div class="h-full rounded-full" style="width:${Math.min(avg, 100)}%;background:${color}"></div>
+            </div>
+          </div>
+        </div>`;
+        }).join('')
+      : '<p class="text-sm text-gray-500 py-4 text-center">暂无分析数据</p>';
+
+    // ---- 4. 更新图表 ----
+    updateDashboardCharts(s);
+
+    // ---- 5. 日期 ----
+    const now = new Date();
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+    document.getElementById('dashboardDate').textContent =
+      `今天是 ${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 星期${weekdays[now.getDay()]}`;
+
+    lucide.createIcons();
+  } catch (e) {
+    document.getElementById('dashboardDate').textContent = '数据加载失败，请确认后端已启动';
+    showToast('数据加载失败：' + e.message, 'error');
+  }
+}
+
+function updateDashboardCharts(stats) {
+  const isDark = html.classList.contains('dark');
+  const textColor = isDark ? '#94a3b8' : '#6b7280';
+  const axisColor = isDark ? '#334155' : '#e5e7eb';
+
+  // ---- 得分趋势图（来自 /api/stats daily_trends） ----
+  const dailyTrends = (stats && stats.daily_trends) || [];
+  const trendChart = echarts.getInstanceByDom(document.getElementById('chart-trend')) || echarts.init(document.getElementById('chart-trend'));
+
+  if (dailyTrends.length > 0) {
+    const dates = dailyTrends.map(t => {
+      const parts = t.date.split('-');
+      return parts.length >= 3 ? parts[1] + '-' + parts[2] : t.date;
+    });
+    const scores = dailyTrends.map(t => t.avg_score);
+
+    // 收集各顾问的独立趋势线
+    const consultantSeries = [];
+    const allConsultantIds = new Set();
+    dailyTrends.forEach(t => Object.keys(t).forEach(k => {
+      if (k !== 'date' && k !== 'avg_score' && k !== 'call_count') allConsultantIds.add(k);
+    }));
+    // 取 TOP 3 顾问名对应顾问id
+    const comp = (stats && stats.consultant_comparison) || [];
+    const topNames = new Set(comp.slice(0, 3).map(c => c.consultant_id));
+    const consultantColors = ['#10b981', '#f59e0b', '#8b5cf6'];
+    let ci = 0;
+    allConsultantIds.forEach(cid => {
+      if (ci >= 3) return;
+      const data = dailyTrends.map(t => t[cid] != null ? t[cid] : null);
+      consultantSeries.push({
+        name: cid,
+        type: 'line',
+        smooth: true,
+        data: data,
+        lineStyle: { color: consultantColors[ci], width: 2 },
+        itemStyle: { color: consultantColors[ci] }
+      });
+      ci++;
+    });
+
+    const allSeries = [
+      { name: '团队平均', type: 'line', smooth: true, data: scores,
+        lineStyle: { color: '#3b82f6', width: 3 },
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(59,130,246,0.3)' }, { offset: 1, color: 'rgba(59,130,246,0.05)' }] } },
+        itemStyle: { color: '#3b82f6' }
+      },
+      ...consultantSeries
+    ];
+
+    trendChart.setOption({
+      tooltip: { trigger: 'axis', backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: axisColor, textStyle: { color: isDark ? '#f1f5f9' : '#111827' } },
+      legend: { data: allSeries.map(s => s.name), textStyle: { color: textColor }, bottom: 0 },
+      grid: { left: '3%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
+      xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: axisColor } }, axisLabel: { color: textColor } },
+      yAxis: { type: 'value', min: 30, max: 100, axisLine: { show: false }, splitLine: { lineStyle: { color: axisColor } }, axisLabel: { color: textColor } },
+      series: allSeries
+    }, true);
+  } else {
+    trendChart.setOption({
+      title: { text: '暂无趋势数据', left: 'center', top: 'center', textStyle: { color: textColor, fontSize: 14 } }
+    }, true);
+  }
+
+  // ---- SPIN 雷达图（来自 /api/stats spin_coverage） ----
+  const spinCov = (stats && stats.spin_coverage) || {};
+  const radarChart = echarts.getInstanceByDom(document.getElementById('chart-radar')) || echarts.init(document.getElementById('chart-radar'));
+  const spinDims = ['situation', 'problem', 'implication', 'need_payoff'];
+  const spinNames = ['S-现状问题', 'P-困难挑战', 'I-影响后果', 'N-需求回报'];
+  const radarValues = spinDims.map(dim => {
+    const d = spinCov[dim] || {};
+    return d.avg_quality || d.coverage_rate || 0;
+  });
+
+  radarChart.setOption({
+    tooltip: { backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: axisColor, textStyle: { color: isDark ? '#f1f5f9' : '#111827' } },
+    radar: {
+      indicator: spinNames.map((name, i) => ({ name, max: 100 })),
+      axisName: { color: textColor },
+      splitArea: { areaStyle: { color: isDark ? ['rgba(30,41,59,0.5)', 'rgba(30,41,59,0.3)'] : ['rgba(250,250,250,0.5)', 'rgba(240,240,240,0.3)'] } },
+      splitLine: { lineStyle: { color: axisColor } },
+      radius: '65%',
+      center: ['50%', '50%']
+    },
+    series: [{
+      type: 'radar',
+      data: [
+        { value: radarValues, name: '团队平均', areaStyle: { color: 'rgba(59,130,246,0.2)' }, lineStyle: { color: '#3b82f6', width: 2 }, itemStyle: { color: '#3b82f6' } },
+        { value: [85, 85, 85, 85], name: '目标线', areaStyle: { color: 'rgba(16,185,129,0.08)' }, lineStyle: { color: '#10b981', width: 2, type: 'dashed' }, itemStyle: { color: '#10b981' }, symbol: 'none' }
+      ]
+    }]
+  }, true);
+}
+
+// ==================== CALLS ====================
+let callsPage = 1;
+const callsPerPage = 20;
+let filteredCalls = [];
+
+async function loadCalls() {
+  try {
+    const calls = await api('/api/calls');
+    allCalls = calls || [];
+    document.getElementById('callsBadge').textContent = allCalls.length;
+    document.getElementById('callsBadge').classList.toggle('hidden', allCalls.length === 0);
+
+    // 填充顾问筛选下拉框
+    const seen = new Set();
+    const options = ['<option value="">全部顾问</option>'];
+    allCalls.forEach(c => {
+      const name = c.consultant_name || '';
+      if (name && !seen.has(name)) {
+        seen.add(name);
+        options.push(`<option value="${name}">${name}</option>`);
+      }
+    });
+    document.getElementById('callsConsultantFilter').innerHTML = options.join('');
+
+    filterAndRenderCalls();
+  } catch (e) {
+    document.getElementById('callsTableBody').innerHTML = '<tr><td colspan="10" class="px-4 py-12 text-center text-danger-500">加载失败：' + e.message + '</td></tr>';
+  }
+}
+
+function filterAndRenderCalls() {
+  const search = (document.getElementById('callsSearchInput').value || '').toLowerCase().trim();
+  const consultant = document.getElementById('callsConsultantFilter').value;
+  const status = document.getElementById('callsStatusFilter').value;
+  const sortBy = document.getElementById('callsSortBy').value;
+
+  // 筛选
+  let result = (allCalls || []).filter(c => {
+    if (consultant && c.consultant_name !== consultant) return false;
+    if (status === 'analyzed' && !c.has_analysis) return false;
+    if (status === 'pending' && c.has_analysis) return false;
+    if (search) {
+      const name = (c.consultant_name || '').toLowerCase();
+      const cid = (c.call_id || '').toLowerCase();
+      if (!name.includes(search) && !cid.includes(search)) return false;
+    }
+    return true;
+  });
+
+  // 排序
+  result.sort((a, b) => {
+    switch (sortBy) {
+      case 'date-asc': return (a.call_date || '').localeCompare(b.call_date || '');
+      case 'date-desc': return (b.call_date || '').localeCompare(a.call_date || '');
+      case 'score-asc': return (a.overall_score || 0) - (b.overall_score || 0);
+      case 'score-desc': return (b.overall_score || 0) - (a.overall_score || 0);
+      default: return (b.call_date || '').localeCompare(a.call_date || '');
+    }
+  });
+
+  filteredCalls = result;
+  callsPage = 1;
+  renderCallsTable();
+}
+
+function renderCallsTable() {
+  const tbody = document.getElementById('callsTableBody');
+  const total = filteredCalls.length;
+
+  if (total === 0) {
+    const searchVal = (document.getElementById('callsSearchInput').value || '').trim();
+    const hasFilter = searchVal || document.getElementById('callsConsultantFilter').value || document.getElementById('callsStatusFilter').value;
+    tbody.innerHTML = '<tr><td colspan="10" class="px-4 py-12 text-center text-gray-500">' + (hasFilter ? '未匹配到通话记录' : '暂无通话记录，请先上传分析') + '</td></tr>';
+    document.getElementById('callsPageInfo').textContent = '共 0 条';
+    document.getElementById('callsPageButtons').innerHTML = '';
+    return;
+  }
+
+  // 分页
+  const totalPages = Math.ceil(total / callsPerPage);
+  if (callsPage > totalPages) callsPage = totalPages;
+  const start = (callsPage - 1) * callsPerPage;
+  const pageCalls = filteredCalls.slice(start, start + callsPerPage);
+
+  tbody.innerHTML = pageCalls.map(c => {
+    const sd = c.spin_detail || {};
+    const sScore = sd.situation && sd.situation.quality_score || 0;
+    const pScore = sd.problem && sd.problem.quality_score || 0;
+    const iScore = sd.implication && sd.implication.quality_score || 0;
+    const nScore = sd.need_payoff && sd.need_payoff.quality_score || 0;
+
+    const dot = (score, type) => score > 0 ? `<span class="spin-dot ${type}"></span><span class="text-xs ml-1 font-medium text-gray-700 dark:text-gray-300">${score}</span>` : `<span class="spin-dot empty"></span><span class="text-xs ml-1 font-medium text-gray-400">-</span>`;
+
+    const scoreColor = c.overall_score >= 85 ? 'bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-300' :
+      c.overall_score >= 70 ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' :
+      c.overall_score != null ? 'bg-danger-100 dark:bg-danger-900/30 text-danger-700 dark:text-danger-300' :
+      'bg-gray-100 dark:bg-gray-700 text-gray-400';
+
+    const statusBadge = c.has_analysis
+      ? '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-success-50 dark:bg-success-900/20 text-success-600 dark:text-success-400"><span class="w-1.5 h-1.5 rounded-full bg-success-500"></span>已分析</span>'
+      : '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-warning-50 dark:bg-warning-900/20 text-warning-600 dark:text-warning-400"><span class="w-1.5 h-1.5 rounded-full bg-warning-500"></span>' + (c.status || '待分析') + '</span>';
+
+    const cost = c.cost || {};
+    const costStr = cost.cost_cny != null ? '¥' + cost.cost_cny.toFixed(4) : '-';
+
+    const callId = c.call_id || c.record_id || '';
+    const escapedCallId = callId.replace(/'/g, "\\'");
+
+    return `
+      <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors group cursor-pointer" onclick="showCallDetail('${escapedCallId}')">
+        <td class="px-4 py-4">
+          <div class="flex items-center gap-3">
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(c.consultant_name || 'unknown')}" class="w-8 h-8 rounded-full bg-gray-100">
+            <span class="font-medium text-gray-900 dark:text-white">${c.consultant_name || '未知'}</span>
+          </div>
+        </td>
+        <td class="px-4 py-4 text-gray-600 dark:text-gray-400" onclick="event.stopPropagation()">${c.call_date || '-'}</td>
+        <td class="px-4 py-4 text-center" onclick="event.stopPropagation()">${dot(sScore, 's')}</td>
+        <td class="px-4 py-4 text-center" onclick="event.stopPropagation()">${dot(pScore, 'p')}</td>
+        <td class="px-4 py-4 text-center" onclick="event.stopPropagation()">${dot(iScore, 'i')}</td>
+        <td class="px-4 py-4 text-center" onclick="event.stopPropagation()">${dot(nScore, 'n')}</td>
+        <td class="px-4 py-4 text-center" onclick="event.stopPropagation()"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${scoreColor}">${c.overall_score != null ? c.overall_score : '-'}</span></td>
+        <td class="px-4 py-4 text-center text-xs text-gray-500" onclick="event.stopPropagation()">${costStr}</td>
+        <td class="px-4 py-4 text-center" onclick="event.stopPropagation()">${statusBadge}</td>
+        <td class="px-4 py-4 text-right" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onclick="event.stopPropagation();showCallDetail('${escapedCallId}')" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600" title="查看详情"><i data-lucide="eye" class="w-4 h-4 text-primary-500"></i></button>
+            <button onclick="event.stopPropagation();deleteCall('${escapedCallId}')" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600" title="删除"><i data-lucide="trash-2" class="w-4 h-4 text-danger-500"></i></button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // 分页控件
+  document.getElementById('callsPageInfo').textContent = `共 ${total} 条，第 ${callsPage}/${totalPages} 页`;
+  let pageHtml = '';
+  pageHtml += `<button onclick="callsPage=1;renderCallsTable()" class="px-2 py-1 rounded-lg text-xs ${callsPage === 1 ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}" ${callsPage === 1 ? 'disabled' : ''}><i data-lucide="chevrons-left" class="w-3.5 h-3.5"></i></button>`;
+  pageHtml += `<button onclick="if(callsPage>1){callsPage--;renderCallsTable()}" class="px-2 py-1 rounded-lg text-xs ${callsPage <= 1 ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}" ${callsPage <= 1 ? 'disabled' : ''}><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>`;
+
+  // 页码按钮（最多显示 7 页）
+  const maxVisible = 7;
+  let startPage = Math.max(1, callsPage - Math.floor(maxVisible / 2));
+  let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+  if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+
+  for (let p = startPage; p <= endPage; p++) {
+    pageHtml += `<button onclick="callsPage=${p};renderCallsTable()" class="px-2.5 py-1 rounded-lg text-xs font-medium ${p === callsPage ? 'bg-primary-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}">${p}</button>`;
+  }
+
+  pageHtml += `<button onclick="if(callsPage<totalPages){callsPage++;renderCallsTable()}" class="px-2 py-1 rounded-lg text-xs ${callsPage >= totalPages ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}" ${callsPage >= totalPages ? 'disabled' : ''}><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>`;
+  pageHtml += `<button onclick="callsPage=${totalPages};renderCallsTable()" class="px-2 py-1 rounded-lg text-xs ${callsPage === totalPages ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}" ${callsPage === totalPages ? 'disabled' : ''}><i data-lucide="chevrons-right" class="w-3.5 h-3.5"></i></button>`;
+
+  document.getElementById('callsPageButtons').innerHTML = pageHtml;
+  lucide.createIcons();
+}
+
+// ---- 顾问能力标签映射 ----
+const TAG_CAPABILITY_MAP = {
+  '需求挖掘不足': { label: '需求挖掘待加强', icon: '🎯', level: 'warn' },
+  'SPIN不完整': { label: 'SPIN结构待完善', icon: '🔄', level: 'warn' },
+  '收尾缺失': { label: '收尾推进待提升', icon: '🏁', level: 'warn' },
+  '随和客户': { label: '亲和力沟通', icon: '🤝', level: 'good' },
+  '试驾意向明确': { label: '试驾推进有效', icon: '🚗', level: 'good' },
+  '价格敏感': { label: '价格应对能力', icon: '💰', level: 'warn' },
+  '开场良好': { label: '开场建立信任', icon: '👋', level: 'good' },
+  '产品介绍清晰': { label: '产品讲解力', icon: '📋', level: 'good' },
+  '关单意识强': { label: '成交推进强', icon: '💪', level: 'good' },
+  '客户类型判断准确': { label: '客户洞察力', icon: '👁', level: 'good' }
+};
+
+function mapTagToCapability(rawTag) {
+  const t = (typeof rawTag === 'string' ? rawTag : (rawTag.label || '')).trim();
+  const mapped = TAG_CAPABILITY_MAP[t];
+  if (mapped) return { ...mapped, raw: t };
+  // 自动推断：含"不足/缺失/不完整/差"→warn，含"良好/强/准/明确"→good
+  const isNegative = /不足|缺失|不完整|差|弱|无|缺/.test(t);
+  return { label: t, icon: isNegative ? '⚠️' : '✅', level: isNegative ? 'warn' : 'good', raw: t };
+}
+
+// ---- 通话详情弹窗 ----
+async function showCallDetail(callId) {
+  const modal = document.getElementById('callDetailModal');
+  const content = document.getElementById('callDetailContent');
+  document.getElementById('detailTitle').textContent = '通话详情 - ' + callId.slice(0, 12);
+  content.innerHTML = '<div class="flex items-center justify-center py-16"><div class="skeleton w-full h-48 rounded-xl"></div></div>';
+  modal.classList.remove('hidden');
+
+  try {
+    const detail = await api('/api/calls/' + callId);
+    if (!detail || detail.error) { content.innerHTML = '<p class="text-danger-500 text-center py-12">' + (detail?.error || '加载失败') + '</p>'; return; }
+
+    const sd = detail.analysis?.spin_analysis || {};
+    const score = detail.analysis?.script_score || {};
+    const rawTags = detail.tags || [];
+    const goldenScripts = detail.golden_scripts || [];
+    const objections = detail.analysis?.objection_handling || [];
+    const spark = detail.spark_report;
+    const highlightSpans = detail.highlight_spans || [];
+    const transcript = detail.transcript_masked || detail.transcript || '';
+
+    // ---- 1. 亮点总结（解析 JSON 用 ✅⚠️） ----
+    let sparkHtml = '';
+    if (spark && typeof spark === 'object') {
+      const strengths = spark.strengths || [];
+      const potential = spark.potential || '';
+      const areas = spark.areas || [];
+      const priorities = spark.revision_priority || [];
+      const keepGoing = spark.keep_going || '';
+
+      sparkHtml = '<div class="space-y-4">';
+
+      // 优势/潜力 ✅
+      const positives = [];
+      if (strengths.length > 0) positives.push(...strengths.map(s => typeof s === 'string' ? s : (s.description || s.title || JSON.stringify(s))));
+      if (potential) positives.push(potential);
+      if (positives.length > 0) {
+        sparkHtml += '<div><p class="text-xs font-medium text-success-600 dark:text-success-400 mb-2">✅ 优势与潜力</p>';
+        positives.forEach(p => { sparkHtml += `<p class="text-sm text-gray-700 dark:text-gray-300 mb-1 pl-4 border-l-2 border-success-300">${p}</p>`; });
+        sparkHtml += '</div>';
+      }
+
+      // 待改进 ⚠️
+      const negatives = [...areas, ...priorities];
+      if (negatives.length > 0) {
+        sparkHtml += '<div><p class="text-xs font-medium text-warning-600 dark:text-warning-400 mb-2">⚠️ 待改进领域</p>';
+        negatives.forEach(n => {
+          const text = typeof n === 'string' ? n : (n.description || n.title || JSON.stringify(n));
+          sparkHtml += `<p class="text-sm text-gray-700 dark:text-gray-300 mb-1 pl-4 border-l-2 border-warning-300">${text}</p>`;
+        });
+        sparkHtml += '</div>';
+      }
+
+      // 鼓励 💪
+      if (keepGoing) {
+        sparkHtml += `<div class="p-3 rounded-xl bg-primary-50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/20"><p class="text-xs font-medium text-primary-600 dark:text-primary-400 mb-1">💪 继续加油</p><p class="text-sm text-gray-700 dark:text-gray-300">${keepGoing}</p></div>`;
+      }
+      sparkHtml += '</div>';
+    } else if (spark && typeof spark === 'string') {
+      sparkHtml = `<div class="p-4 rounded-xl bg-primary-50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/20"><p class="text-sm text-gray-700 dark:text-gray-300">${spark}</p></div>`;
+    }
+
+    // ---- 2. 得分细分 ----
+    const spinLabels = { situation: 'S 现状问题', problem: 'P 困难挑战', implication: 'I 影响后果', need_payoff: 'N 需求回报' };
+    const spinColors = { situation: '#3b82f6', problem: '#10b981', implication: '#f59e0b', need_payoff: '#ef4444' };
+
+    let spinHtml = '';
+    Object.entries(spinLabels).forEach(([key, label]) => {
+      const d = sd[key] || {};
+      const covered = d.covered ? '<span class="text-success-600 font-medium text-xs">✓ 已覆盖</span>' : '<span class="text-danger-500 font-medium text-xs">✗ 未覆盖</span>';
+      const scoreVal = d.quality_score != null ? d.quality_score : '-';
+      const evidence = d.evidence || d.excerpt || '';
+      spinHtml += `
+        <div class="flex items-start gap-3 p-4 rounded-xl bg-gray-50 dark:bg-gray-700/30 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style="background:${spinColors[key]}15">
+            <span class="text-sm font-bold" style="color:${spinColors[key]}">${key[0].toUpperCase()}</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-sm font-medium text-gray-900 dark:text-white">${label}</span>
+              <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:${spinColors[key]}15;color:${spinColors[key]}">质量: ${scoreVal}</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs">
+              <span>${covered}</span>
+              ${evidence ? `<span class="text-gray-400 truncate max-w-[240px]">${evidence}</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+    });
+
+    let scoreHtml = '<div class="space-y-3">';
+    const scoreLabels = { overall: '总分', opening: '开场', needs_discovery: '需求挖掘', course_presentation: '课程介绍', objection_handling: '异议处理', closing: '关单' };
+    Object.entries(scoreLabels).forEach(([key, label]) => {
+      const v = score[key];
+      const barColor = v >= 85 ? '#10b981' : v >= 70 ? '#3b82f6' : v >= 60 ? '#f59e0b' : '#ef4444';
+      scoreHtml += `
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-gray-500 dark:text-gray-400 w-16 text-right flex-shrink-0">${label}</span>
+          <div class="flex-1 h-2.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-700" style="width:${Math.max(v || 0, 2)}%;background:${barColor}"></div>
+          </div>
+          <span class="text-xs font-bold w-8 text-right" style="color:${barColor}">${v != null ? v : '-'}</span>
+        </div>`;
+    });
+    scoreHtml += '</div>';
+
+    // ---- 3. 顾问能力标签（从 AI 标签映射） ----
+    const capabilities = rawTags.map(mapTagToCapability);
+    let tagsHtml = capabilities.length > 0
+      ? capabilities.map(c => {
+          const bg = c.level === 'good' ? 'bg-success-50 dark:bg-success-900/20 border-success-200 dark:border-success-900/30 text-success-700 dark:text-success-300'
+            : 'bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-900/30 text-warning-700 dark:text-warning-300';
+          return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${bg}">${c.icon} ${c.label}</span>`;
+        }).join('')
+      : '<span class="text-xs text-gray-400 italic">暂无能力标签</span>';
+
+    // ---- 4. 金句话术（空时显示"暂无"） ----
+    let goldenHtml = goldenScripts.length > 0
+      ? goldenScripts.map((gs, i) => {
+          const text = gs.script || gs.text || gs.content || '';
+          const ctx = gs.context || '';
+          const dim = gs.dimension || gs.label || '';
+          return `
+          <div class="p-4 rounded-xl bg-success-50 dark:bg-success-900/10 border border-success-200 dark:border-success-900/20 hover:shadow-sm transition-shadow">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xs font-semibold text-success-700 dark:text-success-400">💬 金句 #${i + 1}</span>
+              ${dim ? `<span class="text-xs px-1.5 py-0.5 rounded bg-success-100 dark:bg-success-900/30 text-success-600">${dim}</span>` : ''}
+              ${ctx ? `<span class="text-xs text-gray-400 truncate">${ctx}</span>` : ''}
+            </div>
+            <p class="text-sm text-gray-800 dark:text-gray-200 leading-relaxed italic">"${text}"</p>
+          </div>`;
+        }).join('')
+      : '<div class="p-4 rounded-xl bg-gray-50 dark:bg-gray-700/20 border border-dashed border-gray-200 dark:border-gray-600 text-center"><span class="text-xs text-gray-400 italic">暂无金句 — 本次通话未检测到亮点话术</span></div>';
+
+    // ---- 5. 通话原文（区分说话人 + 高亮关键句） ----
+    const highlightCharSet = new Set();
+    highlightSpans.forEach(hs => {
+      for (let i = hs.start_index || 0; i <= (hs.end_index || 0); i++) highlightCharSet.add(i);
+    });
+
+    let transcriptHtml = '';
+    if (transcript) {
+      const lines = transcript.split('\n').filter(l => l.trim());
+      const MAX_LINES = 200;
+      const displayLines = lines.slice(0, MAX_LINES);
+      const truncated = lines.length > MAX_LINES;
+
+      transcriptHtml = '<div class="space-y-3 max-h-80 overflow-y-auto pr-1">';
+      let charOffset = 0;
+      displayLines.forEach(line => {
+        const trimmed = line.trim();
+        const lineLen = trimmed.length;
+        // 检测说话人
+        const isConsultant = /^顾问[：:]/.test(trimmed);
+        const isCustomer = /^客户[：:]/.test(trimmed);
+        const speakerLabel = isConsultant ? '顾问' : isCustomer ? '客户' : '';
+        const text = trimmed.replace(/^(顾问|客户)[：:]\s*/, '');
+
+        // 检查该行是否含高亮区间
+        const lineStart = charOffset + (trimmed.length - text.length);
+        const lineEnd = lineStart + text.length;
+        let hasHighlight = false;
+        for (let i = lineStart; i < lineEnd; i++) {
+          if (highlightCharSet.has(i)) { hasHighlight = true; break; }
+        }
+
+        charOffset += trimmed.length + 1; // +1 for newline
+
+        if (speakerLabel === '顾问') {
+          transcriptHtml += `
+            <div class="flex items-start gap-3 ${hasHighlight ? 'p-3 rounded-xl bg-warning-50 dark:bg-warning-900/10 border-l-2 border-warning-400' : ''}">
+              <div class="w-7 h-7 rounded-full bg-primary-100 dark:bg-primary-800 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span class="text-xs font-bold text-primary-600 dark:text-primary-300">顾</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs text-gray-400 mb-0.5">顾问</p>
+                <p class="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">${text || trimmed}</p>
+                ${hasHighlight ? '<span class="inline-flex items-center gap-1 mt-1 text-xs text-warning-600"><span class="w-1 h-1 rounded-full bg-warning-500"></span>关键句</span>' : ''}
+              </div>
+            </div>`;
+        } else if (speakerLabel === '客户') {
+          transcriptHtml += `
+            <div class="flex items-start gap-3 ${hasHighlight ? 'p-3 rounded-xl bg-warning-50 dark:bg-warning-900/10 border-l-2 border-warning-400' : ''}">
+              <div class="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span class="text-xs font-bold text-gray-600 dark:text-gray-300">客</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs text-gray-400 mb-0.5">客户</p>
+                <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">${text || trimmed}</p>
+                ${hasHighlight ? '<span class="inline-flex items-center gap-1 mt-1 text-xs text-warning-600"><span class="w-1 h-1 rounded-full bg-warning-500"></span>关键句</span>' : ''}
+              </div>
+            </div>`;
+        } else {
+          transcriptHtml += `<p class="text-sm text-gray-500 dark:text-gray-400 pl-10 leading-relaxed">${trimmed}</p>`;
+        }
+      });
+      if (truncated) {
+        transcriptHtml += `<p class="text-xs text-gray-400 text-center pt-2">... 共 ${lines.length} 行，仅展示前 ${MAX_LINES} 行</p>`;
+      }
+      transcriptHtml += '</div>';
+    } else {
+      transcriptHtml = '<p class="text-xs text-gray-400 italic text-center py-4">暂无通话原文</p>';
+    }
+
+    // ---- 异议处理 ----
+    let objectionHtml = objections.length > 0
+      ? objections.map(o => {
+          const type = o.objection_type || '未知类型';
+          const score = o.effectiveness_score != null ? o.effectiveness_score : '-';
+          const client = o.client_concern || '-';
+          const response = o.consultant_response || '-';
+          return `
+          <div class="p-4 rounded-xl bg-warning-50 dark:bg-warning-900/10 border border-warning-200 dark:border-warning-900/20">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-semibold text-warning-700 dark:text-warning-400">${type}</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-warning-100 dark:bg-warning-900/30 text-warning-600">处理分: ${score}</span>
+            </div>
+            <p class="text-xs text-gray-600 dark:text-gray-400 mb-1"><span class="font-medium">客户:</span> ${client}</p>
+            <p class="text-xs text-gray-600 dark:text-gray-400"><span class="font-medium">回应:</span> ${response}</p>
+          </div>`;
+        }).join('')
+      : '';
+
+    // ---- 组装最终 HTML ----
+    content.innerHTML = `
+      <div class="space-y-8 pb-4">
+        <!-- ===== 基本信息卡片 ===== -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/30 border border-gray-100 dark:border-gray-700/50">
+            <p class="text-xs text-gray-400 mb-1.5 tracking-wide uppercase">顾问</p>
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">${detail.consultant_name || '-'}</p>
+          </div>
+          <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/30 border border-gray-100 dark:border-gray-700/50">
+            <p class="text-xs text-gray-400 mb-1.5 tracking-wide uppercase">日期</p>
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">${detail.call_date || '-'}</p>
+          </div>
+          <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/30 border border-gray-100 dark:border-gray-700/50">
+            <p class="text-xs text-gray-400 mb-1.5 tracking-wide uppercase">状态</p>
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">${detail.status || '-'}</p>
+          </div>
+          <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/30 border border-gray-100 dark:border-gray-700/50">
+            <p class="text-xs text-gray-400 mb-1.5 tracking-wide uppercase">通话ID</p>
+            <p class="text-sm font-mono font-semibold text-gray-900 dark:text-white truncate" title="${callId}">${callId.slice(0, 12)}...</p>
+          </div>
+        </div>
+
+        <!-- ===== 得分细分（重点模块） ===== -->
+        <div class="p-5 rounded-2xl bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 shadow-sm">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="text-lg">📊</span>
+            <h4 class="text-sm font-bold text-gray-900 dark:text-white">得分细分</h4>
+          </div>
+          ${scoreHtml}
+        </div>
+
+        <!-- ===== SPIN 分析（重点模块） ===== -->
+        <div class="p-5 rounded-2xl bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 shadow-sm">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="text-lg">🔍</span>
+            <h4 class="text-sm font-bold text-gray-900 dark:text-white">SPIN 分析</h4>
+          </div>
+          <div class="space-y-2">${spinHtml}</div>
+        </div>
+
+        <!-- ===== 顾问能力标签 ===== -->
+        <div class="p-5 rounded-2xl bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 shadow-sm">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="text-lg">🏷️</span>
+            <h4 class="text-sm font-bold text-gray-900 dark:text-white">顾问能力标签</h4>
+          </div>
+          <div class="flex flex-wrap gap-2">${tagsHtml}</div>
+        </div>
+
+        <!-- ===== 金句话术（始终显示） ===== -->
+        <div class="p-5 rounded-2xl bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 shadow-sm">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="text-lg">💬</span>
+            <h4 class="text-sm font-bold text-gray-900 dark:text-white">金句话术</h4>
+          </div>
+          <div class="space-y-3">${goldenHtml}</div>
+        </div>
+
+        <!-- ===== 异议处理 ===== -->
+        ${objectionHtml ? `
+        <div class="p-5 rounded-2xl bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 shadow-sm">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="text-lg">⚡</span>
+            <h4 class="text-sm font-bold text-gray-900 dark:text-white">异议处理</h4>
+          </div>
+          <div class="space-y-3">${objectionHtml}</div>
+        </div>` : ''}
+
+        <!-- ===== 亮点总结（解析 JSON） ===== -->
+        ${sparkHtml ? `
+        <div class="p-5 rounded-2xl bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 shadow-sm">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="text-lg">✨</span>
+            <h4 class="text-sm font-bold text-gray-900 dark:text-white">亮点总结</h4>
+          </div>
+          ${sparkHtml}
+        </div>` : ''}
+
+        <!-- ===== 通话原文（区分说话人 + 高亮） ===== -->
+        <div class="p-5 rounded-2xl bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 shadow-sm">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="text-lg">📝</span>
+            <h4 class="text-sm font-bold text-gray-900 dark:text-white">通话原文（脱敏）</h4>
+            ${highlightSpans.length > 0 ? `<span class="text-xs text-warning-600 bg-warning-50 rounded-full px-2 py-0.5">${highlightSpans.length} 处关键标记</span>` : ''}
+          </div>
+          ${transcriptHtml}
+        </div>
+      </div>`;
+
+    lucide.createIcons();
+  } catch (e) {
+    content.innerHTML = '<p class="text-danger-500 text-center py-12">加载详情失败：' + e.message + '</p>';
+  }
+}
+
+function closeCallDetail() {
+  document.getElementById('callDetailModal').classList.add('hidden');
+}
+
+async function deleteCall(callId) {
+  if (!confirm('确定删除该通话记录？')) return;
+  try {
+    await fetch(API_BASE + '/api/calls/' + callId, { method: 'DELETE' });
+    showToast('已删除', 'success');
+    loadCalls();
+    // 如果详情弹窗打开的是被删除的通话，关闭它
+    const title = document.getElementById('detailTitle').textContent;
+    if (title.includes(callId.slice(0, 12))) closeCallDetail();
+  } catch (e) {
+    showToast('删除失败：' + e.message, 'error');
+  }
+}
+
+// ==================== 顾问管理（卡片网格） ====================
+let consultantSearchTerm = '';
+const CONSULTANT_RADAR_INSTANCES = {};
+
+const RADAR_DIMS = [
+  { key: 'opening', label: '开场白', max: 100 },
+  { key: 'needs_discovery', label: '需求挖掘', max: 100 },
+  { key: 'course_presentation', label: '产品展示', max: 100 },
+  { key: 'objection_handling', label: '异议处理', max: 100 },
+  { key: 'closing', label: '成交推进', max: 100 },
+  { key: 'spin_covg', label: 'SPIN覆盖', max: 100 },
+];
+
+async function loadConsultants() {
+  try {
+    // 并行获取顾问列表和通话列表
+    const [consultants, calls] = await Promise.all([
+      api('/api/consultants'),
+      api('/api/calls')
+    ]);
+    allConsultants = (consultants || []).filter(c => c.call_count > 0);
+    allCalls = calls || [];
+
+    // 为每个顾问计算维度均值
+    allConsultants.forEach(c => {
+      const myCalls = (allCalls || []).filter(cl => cl.consultant_id === c.consultant_id && cl.has_analysis);
+      const dimAvgs = {};
+      RADAR_DIMS.forEach(d => { dimAvgs[d.key] = 0; });
+      let callCount = 0;
+      myCalls.forEach(cl => {
+        callCount++;
+        const ds = cl.dimension_scores || {};
+        if (ds.opening != null) dimAvgs.opening += ds.opening;
+        if (ds.needs_discovery != null) dimAvgs.needs_discovery += ds.needs_discovery;
+        if (ds.course_presentation != null) dimAvgs.course_presentation += ds.course_presentation;
+        if (ds.objection_handling != null) dimAvgs.objection_handling += ds.objection_handling;
+        if (ds.closing != null) dimAvgs.closing += ds.closing;
+        // SPIN覆盖 = 各SPIN维度quality_score的均值 * 10
+        const sd = cl.spin_detail || {};
+        const spinQs = ['situation','problem','implication','need_payoff']
+          .map(k => (sd[k] && sd[k].quality_score) || 0);
+        dimAvgs.spin_covg += (spinQs.reduce((a,b)=>a+b,0) / Math.max(1, spinQs.filter(v=>v>0).length)) * 10 || 0;
+      });
+      if (callCount > 0) {
+        Object.keys(dimAvgs).forEach(k => { dimAvgs[k] = Math.round(dimAvgs[k] / callCount); });
+      }
+      // 补充默认值
+      Object.keys(dimAvgs).forEach(k => { if (!dimAvgs[k]) dimAvgs[k] = 0; });
+      c._dim_avgs = dimAvgs;
+      c._recent_calls = myCalls.sort((a,b) => (b.call_date||'').localeCompare(a.call_date||'')).slice(0, 5);
+      // 计算平均分
+      const scores = myCalls.map(cl => cl.overall_score).filter(s => s != null);
+      c._avg_score = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0) / scores.length) : null;
+    });
+
+    // 更新上传页面的顾问下拉框
+    const sel = document.getElementById('consultantSelect');
+    if (sel) {
+      const options = ['<option value="">从文件名自动识别</option>'];
+      allConsultants.forEach(c => {
+        options.push(`<option value="${c.consultant_name || c.consultant_id}">${c.consultant_name || c.consultant_id}</option>`);
+      });
+      sel.innerHTML = options.join('');
+    }
+
+    renderConsultantCards();
+  } catch (e) {
+    document.getElementById('consultantCardsGrid').innerHTML = '<p class="col-span-2 text-center text-danger-500 py-12">加载失败：' + e.message + '</p>';
+  }
+}
+
+function filterConsultants() {
+  consultantSearchTerm = (document.getElementById('consultantSearch')?.value || '').trim().toLowerCase();
+  renderConsultantCards();
+}
+
+function computeRadarData(consultant) {
+  const data = consultant._dim_avgs || {};
+  return RADAR_DIMS.map(d => data[d.key] || 0);
+}
+
+function renderConsultantCards() {
+  const grid = document.getElementById('consultantCardsGrid');
+  if (!allConsultants.length) {
+    grid.innerHTML = '<div class="col-span-2 flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500"><span class="text-4xl mb-3">👤</span><p class="text-sm">暂无顾问数据</p><p class="text-xs mt-1">请先上传分析通话</p></div>';
+    return;
+  }
+
+  // 搜索过滤
+  let filtered = allConsultants;
+  if (consultantSearchTerm) {
+    filtered = allConsultants.filter(c => {
+      const name = (c.consultant_name || '').toLowerCase();
+      const id = (c.consultant_id || '').toLowerCase();
+      return name.includes(consultantSearchTerm) || id.includes(consultantSearchTerm);
+    });
+  }
+
+  // 按通话数降序排列
+  filtered.sort((a, b) => (b.call_count || 0) - (a.call_count || 0));
+
+  // 清理旧的 radar 实例
+  Object.values(CONSULTANT_RADAR_INSTANCES).forEach(chart => chart.dispose());
+  Object.keys(CONSULTANT_RADAR_INSTANCES).forEach(k => delete CONSULTANT_RADAR_INSTANCES[k]);
+
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="col-span-2 flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500"><span class="text-4xl mb-3">🔍</span><p class="text-sm">找不到匹配的顾问</p></div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map((c, idx) => {
+    const name = c.consultant_name || '未知顾问';
+    const callCount = c.call_count || 0;
+    const avgScore = c._avg_score;
+    const recentCalls = c._recent_calls || [];
+
+    // 排名标签
+    let rankBadge = '';
+    if (idx < 3 && !consultantSearchTerm) {
+      const colors = ['bg-amber-400 text-white', 'bg-gray-300 text-gray-700', 'bg-amber-600 text-white'];
+      rankBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${colors[idx]}">#${idx + 1}</span>`;
+    }
+
+    // 得分颜色
+    const scoreColor = avgScore != null
+      ? (avgScore >= 85 ? 'text-green-600 bg-green-50 dark:bg-green-900/20' : avgScore >= 70 ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-amber-600 bg-amber-50 dark:bg-amber-900/20')
+      : 'text-gray-400 bg-gray-50 dark:bg-gray-700/30';
+
+    // 最近通话列表
+    let recentHtml = '';
+    if (recentCalls.length) {
+      recentHtml = `<div class="mt-3">
+        <p class="text-xs font-semibold text-gray-500 mb-1.5">📋 最近通话</p>
+        <div class="space-y-1">
+          ${recentCalls.map(rc => {
+            const sColor = rc.overall_score >= 85 ? 'text-green-600 bg-green-50 dark:bg-green-900/20' : rc.overall_score >= 70 ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-amber-600 bg-amber-50 dark:bg-amber-900/20';
+            return `<div class="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-gray-50 dark:bg-gray-700/20">
+              <span class="text-gray-600 dark:text-gray-400 truncate max-w-[160px]" title="${rc.call_id || ''}">${rc.call_date || '-'} ${(rc.call_id||'').slice(0, 10)}...</span>
+              <span class="font-bold px-1.5 py-0.5 rounded text-[10px] ${sColor}">${rc.overall_score != null ? rc.overall_score : '-'}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }
+
+    return `<div class="consultant-card bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-lg transition-shadow">
+      <!-- 头部 -->
+      <div class="flex items-start gap-4 mb-4">
+        <div class="relative flex-shrink-0">
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}" class="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-700">
+          ${rankBadge ? `<div class="absolute -top-1.5 -right-1.5">${rankBadge}</div>` : ''}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white truncate">${name}</h3>
+          </div>
+          <div class="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
+            <span>🆔 ${(c.consultant_id || '').slice(0, 12)}</span>
+            <span>📞 ${callCount} 通通话</span>
+          </div>
+          <div class="flex items-center gap-2 mt-1.5">
+            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-sm font-bold ${scoreColor}">${avgScore != null ? avgScore + '分' : '暂无'}</span>
+            <span class="text-xs text-gray-400">平均分</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 雷达图 -->
+      <div class="bg-gray-50 dark:bg-gray-700/20 rounded-xl p-3 mb-3">
+        <p class="text-xs font-semibold text-gray-500 mb-1">📊 能力雷达</p>
+        <div id="radar-${idx}" style="width:100%;height:200px;"></div>
+      </div>
+
+      <!-- 最近通话 -->
+      ${recentHtml}
+
+      <!-- 操作 -->
+      <div class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+        <button onclick="generateReport('${(c.consultant_id||'').replace(/'/g,"\\'")}')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-medium transition-colors">
+          📄 生成报告
+        </button>
+        <button onclick="openConsultantDiagnosis('${(c.consultant_id||'').replace(/'/g,"\\'")}')" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 text-green-600 dark:text-green-400 rounded-xl text-xs font-medium transition-colors border border-green-200 dark:border-green-900/30">
+          🔍 诊断详情
+        </button>
+        <button onclick="deleteConsultant('${(c.consultant_id||'').replace(/'/g,"\\'")}')" class="flex items-center justify-center gap-1 px-3 py-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 rounded-xl text-xs font-medium transition-colors border border-red-200 dark:border-red-900/30">
+          🗑
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  lucide.createIcons();
+
+  // 初始化雷达图（延迟确保 DOM 渲染）
+  requestAnimationFrame(() => {
+    filtered.forEach((c, idx) => {
+      const dom = document.getElementById('radar-' + idx);
+      if (!dom) return;
+      const chart = echarts.init(dom);
+      CONSULTANT_RADAR_INSTANCES[idx] = chart;
+      const values = computeRadarData(c);
+      chart.setOption({
+        radar: {
+          center: ['50%', '50%'],
+          radius: '65%',
+          indicator: RADAR_DIMS.map(d => ({ name: d.label, max: d.max })),
+          axisName: { fontSize: 10, color: '#9ca3af' },
+          splitArea: { areaStyle: { color: ['rgba(59,130,246,0.02)', 'rgba(59,130,246,0.02)'] } },
+        },
+        series: [{
+          type: 'radar',
+          data: [{ value: values, name: '能力分', areaStyle: { color: 'rgba(59,130,246,0.15)' } }],
+          symbol: 'circle', symbolSize: 4,
+          lineStyle: { color: '#3b82f6', width: 2 },
+          itemStyle: { color: '#3b82f6' },
+        }],
+      });
+    });
+  });
+}
+
+// 诊断详情弹窗（复用之前的 selectConsultant 逻辑，但改为弹窗）
+async function openConsultantDiagnosis(consultantId) {
+  const modal = document.getElementById('callDetailModal');
+  const content = document.getElementById('callDetailContent');
+  const title = document.getElementById('detailTitle');
+  title.textContent = '诊断详情 - ' + consultantId;
+  content.innerHTML = '<div class="flex items-center justify-center py-12"><div class="skeleton w-full h-32 rounded-xl"></div></div>';
+  modal.classList.remove('hidden');
+
+  try {
+    const [diagData, coachingData] = await Promise.all([
+      api('/api/diagnosis/' + encodeURIComponent(consultantId)),
+      api('/api/coaching/' + encodeURIComponent(consultantId))
+    ]);
+
+    let html = '<div class="space-y-5">';
+
+    // 基本信息
+    html += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">';
+    html += `<div class="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/30"><p class="text-xs text-gray-400">顾问</p><p class="text-sm font-medium text-gray-900 dark:text-white">${diagData.consultant_name || consultantId}</p></div>`;
+    html += `<div class="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/30"><p class="text-xs text-gray-400">通话数</p><p class="text-sm font-medium text-gray-900 dark:text-white">${diagData.call_count || 0}</p></div>`;
+    html += `<div class="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/30"><p class="text-xs text-gray-400">置信度</p><p class="text-sm font-medium" style="color:${diagData.confidence==='high'?'#10b981':diagData.confidence==='medium'?'#f59e0b':'#ef4444'}">${diagData.confidence || 'low'}</p></div>`;
+    html += `<div class="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/30"><p class="text-xs text-gray-400">诊断级别</p><p class="text-sm font-medium text-gray-900 dark:text-white">${diagData.diagnosis_level || 'none'}</p></div>`;
+    html += '</div>';
+
+    // 诊断进度条
+    const callCount = diagData.call_count || 0;
+    const minFull = diagData.min_required_full || 5;
+    const diagPct = Math.min(100, Math.round((callCount / minFull) * 100));
+    html += `<div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20">
+      <div class="flex justify-between items-center mb-1.5"><span class="text-xs font-semibold">诊断进度</span><span class="text-xs">${diagPct}%</span></div>
+      <div class="h-2 bg-amber-100 dark:bg-amber-900/30 rounded-full overflow-hidden"><div class="h-full bg-amber-500 rounded-full" style="width:${diagPct}%"></div></div>
+      ${diagData.message ? `<p class="text-xs text-primary-600 mt-1.5">${diagData.message}</p>` : ''}
+    </div>`;
+
+    // 诊断报告
+    if (diagData.has_diagnosis && diagData.diagnosis) {
+      const d = diagData.diagnosis;
+      if (d.diagnosis_summary) {
+        html += `<div class="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 text-xs">📝 <strong>诊断摘要：</strong>${d.diagnosis_summary}</div>`;
+      }
+
+      // 优势
+      html += '<div class="p-3 rounded-xl bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/20"><h4 class="text-xs font-bold text-green-700 mb-2">✅ 话术优势</h4>';
+      (d.strengths || []).slice(0, 5).forEach(s => {
+        html += `<div class="text-xs py-1 border-b border-green-100 dark:border-green-900/10 last:border-0"><strong>${s.area || s}</strong>${s.evidence ? '<br><span class="text-gray-500">' + s.evidence + '</span>' : ''}</div>`;
+      });
+      html += '</div>';
+
+      // 短板
+      html += '<div class="p-3 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20"><h4 class="text-xs font-bold text-red-700 mb-2">⚠️ 待提升领域</h4>';
+      (d.weaknesses || []).slice(0, 5).forEach(w => {
+        const sevLabels = { high: '🔴高', medium: '🟡中', low: '🔵低' };
+        html += `<div class="text-xs py-1 border-b border-red-100 dark:border-red-900/10 last:border-0"><strong>${w.area || w}</strong> <span class="text-[10px]">${sevLabels[w.severity] || ''}</span>${w.evidence ? '<br><span class="text-gray-500">' + w.evidence + '</span>' : ''}</div>`;
+      });
+      html += '</div>';
+
+      // 优先路线
+      const priority = d.priority_improvement_areas || [];
+      if (priority.length) {
+        html += '<div class="p-3 rounded-xl bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/20"><h4 class="text-xs font-bold text-purple-700 mb-2">🎯 优先提升路线</h4>';
+        priority.forEach((p,i) => {
+          html += `<div class="flex gap-2 items-start text-xs py-1"><span class="w-5 h-5 rounded-full bg-purple-500 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">${i+1}</span><div><strong>${p.area || p}</strong>${p.recommended_focus ? '<br>💡 ' + p.recommended_focus : ''}</div></div>`;
+        });
+        html += '</div>';
+      }
+    }
+
+    // 教练计划
+    html += '<div class="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/20"><h4 class="text-xs font-bold text-indigo-700 mb-2">🎭 教练计划</h4>';
+    if (coachingData.has_coaching && coachingData.coaching) {
+      const c = coachingData.coaching;
+      const plan = c.coaching_plan || {};
+      const tasks = c.training_tasks || [];
+      html += `<p class="text-xs mb-2">计划: ${plan.plan_id || '-'} | 任务: ${tasks.length}项 | 预计${plan.estimated_duration_days || '-'}天</p>`;
+      tasks.forEach(t => {
+        html += `<div class="p-2 rounded-lg bg-white dark:bg-gray-800 mb-1.5 border-l-2 border-indigo-400 text-xs"><strong>${t.title || '任务'}</strong> (${t.task_type || ''}) ${t.difficulty ? ' ' + '⭐'.repeat(t.difficulty==='高级'?3:t.difficulty==='中级'?2:1) : ''}<br>${t.description || ''}</div>`;
+      });
+    } else {
+      html += '<p class="text-xs text-gray-400">暂无教练计划</p>';
+    }
+    html += '</div>';
+
+    html += '</div>';
+    content.innerHTML = html;
+  } catch (e) {
+    content.innerHTML = '<p class="text-danger-500 text-center py-8">加载失败：' + e.message + '</p>';
+  }
+}
+
+function addConsultant() {
+  const name = prompt('请输入新顾问姓名：');
+  if (!name || !name.trim()) return;
+  showToast('顾问 ' + name.trim() + ' 添加成功！请在后续上传通话时选择此顾问。', 'success');
+}
+
+async function deleteConsultant(consultantId) {
+  if (!confirm('确定删除此顾问及所有通话记录？删除后数据将标记为已删除。')) return;
+  try {
+    const result = await api('/api/consultant/' + encodeURIComponent(consultantId), { method: 'DELETE' });
+    showToast(result.message || '已删除', 'success');
+    loadConsultants();
+  } catch (e) {
+    showToast('删除失败: ' + e.message, 'error');
+  }
+}
+
+async function generateReport(consultantId) {
+  try {
+    showToast('正在生成报告...', 'info');
+    const response = await fetch(API_BASE + '/api/generate-report/' + encodeURIComponent(consultantId), { method: 'POST' });
+    const data = await response.json();
+    if (response.ok) {
+      showToast('报告已生成: ' + (data.consultant_name || '') + ' (' + (data.call_count || 0) + '通)', 'success');
+    } else {
+      showToast('生成失败：' + (data.error || '未知错误'), 'error');
+    }
+  } catch (e) {
+    showToast('请求失败：' + e.message, 'error');
+  }
+}
+
+// ==================== STATS ====================
+async function loadStats() {
+  try {
+    const stats = await api('/api/stats');
+    if (!stats) return;
+
+    const isDark = html.classList.contains('dark');
+    const textColor = isDark ? '#94a3b8' : '#6b7280';
+    const axisColor = isDark ? '#334155' : '#e5e7eb';
+
+    // Bar Chart - SPIN 维度质控得分
+    const barChart = echarts.getInstanceByDom(document.getElementById('chart-bar')) || echarts.init(document.getElementById('chart-bar'));
+    const spinDims = stats.spin_dimensions || {};
+    const spinCoverage = stats.spin_coverage || {};
+    const dimLabels = { situation: 'S-现状问题', problem: 'P-困难挑战', implication: 'I-影响后果', need_payoff: 'N-需求回报' };
+    const dimColors = { situation: '#3b82f6', problem: '#10b981', implication: '#f59e0b', need_payoff: '#ef4444' };
+    const barData = ['situation', 'problem', 'implication', 'need_payoff'].map(k => ({
+      name: dimLabels[k],
+      value: spinDims[k] || 0,
+      coverage: (spinCoverage[k] && spinCoverage[k].coverage_rate) || 0
+    }));
+
+    barChart.setOption({
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: isDark ? '#1e293b' : '#fff',
+        borderColor: axisColor,
+        textStyle: { color: isDark ? '#f1f5f9' : '#111827' },
+        formatter: function(params) {
+          const d = params[0];
+          const dataItem = barData[d.dataIndex];
+          return `<strong>${d.name}</strong><br/>质控得分: ${d.value}分<br/>覆盖率: ${dataItem.coverage}%`;
+        }
+      },
+      grid: { left: '3%', right: '4%', bottom: '3%', top: '5%', containLabel: true },
+      xAxis: { type: 'category', data: barData.map(d => d.name), axisLine: { lineStyle: { color: axisColor } }, axisLabel: { color: textColor } },
+      yAxis: { type: 'value', max: 100, axisLine: { show: false }, splitLine: { lineStyle: { color: axisColor } }, axisLabel: { color: textColor } },
+      series: [{ data: barData.map((d, i) => ({ value: d.value, itemStyle: { color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'][i] } })), type: 'bar', barWidth: '50%', borderRadius: [6, 6, 0, 0] }]
+    }, true);
+
+    // Pie Chart - Score distribution
+    const pieChart = echarts.getInstanceByDom(document.getElementById('chart-pie')) || echarts.init(document.getElementById('chart-pie'));
+    const dist = stats.score_distribution || { '90-100': 0, '80-89': 0, '60-79': 0, '0-59': 0 };
+    pieChart.setOption({
+      tooltip: { trigger: 'item', backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: axisColor, textStyle: { color: isDark ? '#f1f5f9' : '#111827' } },
+      legend: { orient: 'vertical', right: '5%', top: 'center', textStyle: { color: textColor } },
+      series: [{
+        type: 'pie', radius: ['40%', '70%'], center: ['40%', '50%'], avoidLabelOverlap: false,
+        itemStyle: { borderRadius: 8, borderColor: isDark ? '#1e293b' : '#fff', borderWidth: 2 },
+        label: { show: false },
+        data: [
+          { value: dist['60-79'] || 0, name: '60-80分', itemStyle: { color: '#f59e0b' } },
+          { value: dist['80-89'] || 0, name: '80-90分', itemStyle: { color: '#3b82f6' } },
+          { value: dist['90-100'] || 0, name: '90分以上', itemStyle: { color: '#10b981' } },
+          { value: dist['0-59'] || 0, name: '60分以下', itemStyle: { color: '#ef4444' } }
+        ]
+      }]
+    }, true);
+
+  } catch (e) {
+    console.error('Stats load error:', e);
+  }
+}
+
+// ==================== REPORTS ====================
+async function loadReports() {
+  try {
+    const reports = await api('/api/reports');
+    allReports = reports || [];
+    const grid = document.getElementById('reportsGrid');
+    if (!allReports || allReports.length === 0) {
+      grid.innerHTML = '<p class="col-span-3 text-center text-gray-500 py-12">暂无报告，请先生成顾问分析报告</p>';
+      return;
+    }
+    grid.innerHTML = allReports.map(r => `
+      <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 card-hover">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+            <i data-lucide="file-text" class="w-5 h-5 text-primary-600"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">${r.consultant_name} 话术指导报告</h3>
+            <p class="text-xs text-gray-500">${r.generated_at || ''} · ${formatFileSize(r.size)}</p>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="window.open('${API_BASE}/api/download-report/${encodeURIComponent(r.filename)}', '_blank')" class="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 rounded-lg text-xs font-medium hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors">
+            <i data-lucide="eye" class="w-3.5 h-3.5"></i> 查看
+          </button>
+          <button onclick="deleteReport('${encodeURIComponent(r.filename)}')" class="px-3 py-2 bg-gray-50 dark:bg-gray-700/30 text-danger-600 rounded-lg text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+    `).join('');
+    lucide.createIcons();
+  } catch (e) {
+    document.getElementById('reportsGrid').innerHTML = '<p class="col-span-3 text-center text-danger-500 py-12">加载失败：' + e.message + '</p>';
+  }
+}
+
+async function deleteReport(reportId) {
+  if (!confirm('确定删除该报告？')) return;
+  try {
+    const res = await fetch(API_BASE + '/api/reports/' + reportId, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('已删除', 'success');
+      loadReports();
+    } else {
+      const data = await res.json();
+      showToast('删除失败：' + (data.error || ''), 'error');
+    }
+  } catch (e) {
+    showToast('删除失败：' + e.message, 'error');
+  }
+}
+
+// ==================== LIBRARY ====================
+let allLibraryItems = [];
+let libraryRecommendTarget = ''; // 当前AI推荐的目标顾问
+
+async function loadLibrary() {
+  try {
+    const search = document.getElementById('librarySearch')?.value || '';
+    const parentType = document.getElementById('libraryParentType')?.value || '';
+    const problemType = document.getElementById('libraryProblemType')?.value || '';
+    const minScore = document.getElementById('libraryMinScore')?.value || '80';
+
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (parentType) params.set('parent_type', parentType);
+    if (problemType) params.set('problem_type', problemType);
+    if (minScore) params.set('min_score', minScore);
+
+    const items = await api('/api/library?' + params.toString()).catch(() => []);
+    allLibraryItems = items || [];
+    document.getElementById('libraryContent').innerHTML = renderLibrary(allLibraryItems);
+    lucide.createIcons();
+  } catch (e) {
+    document.getElementById('libraryContent').innerHTML = '<p class="text-center text-gray-500 py-12">加载失败：' + e.message + '</p>';
+  }
+}
+
+function filterLibrary() {
+  loadLibrary();
+}
+
+async function aiRecommendScripts() {
+  try {
+    // 从图表数据中找到得分最低的顾问
+    const consultants = await api('/api/consultants').catch(() => []);
+    if (!consultants || consultants.length === 0) {
+      showToast('暂无可推荐的顾问数据', 'warning');
+      return;
+    }
+
+    // 找到整体评分最低的顾问作为推荐目标
+    const stats = await api('/api/stats').catch(() => ({}));
+    const avgScores = stats.consultant_comparison || {};
+    let targetName = consultants[0].consultant_name || '';
+    let minScore = Infinity;
+
+    for (const c of consultants) {
+      const name = c.consultant_name || '';
+      const score = avgScores[name] || c.avg_score || 0;
+      if (score < minScore && score > 0) {
+        minScore = score;
+        targetName = name;
+      }
+    }
+
+    if (targetName) {
+      libraryRecommendTarget = targetName;
+      document.getElementById('libraryRecommendText').textContent =
+        `基于${targetName}的短板，为您推荐以下话术练习`;
+      document.getElementById('libraryRecommendBox').classList.remove('hidden');
+    }
+
+    // 加载全部话术（不过滤分数）
+    const items = await api('/api/library?min_score=60').catch(() => []);
+    allLibraryItems = items || [];
+    document.getElementById('libraryContent').innerHTML = renderLibrary(allLibraryItems);
+    lucide.createIcons();
+  } catch (e) {
+    console.error('AI recommend error:', e);
+  }
+}
+
+function renderLibrary(items) {
+  if (items.length === 0) return '<p class="text-center text-gray-500 py-12">暂无话术数据，分析更多高分通话后自动收录</p>';
+
+  // 得分颜色映射
+  const getScoreColor = (s) => {
+    if (s >= 90) return { text: 'text-amber-500', tag: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200' };
+    if (s >= 80) return { text: 'text-blue-500', tag: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200' };
+    if (s >= 70) return { text: 'text-green-500', tag: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' };
+    return { text: 'text-gray-400', tag: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400' };
+  };
+
+  // 标签颜色池
+  const tagColors = [
+    'bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800',
+    'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800',
+    'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800',
+    'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800',
+    'bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800',
+  ];
+
+  // 构建唯一ID用于音频播放
+  let audioCounter = 0;
+
+  return items.map((item, idx) => {
+    const sc = getScoreColor(item.score || 0);
+    const parentTypes = item.parent_type || [];
+    const problemTypes = item.problem_type || [];
+    const scriptId = item.script_id || ('script_' + idx);
+    const audioId = 'libraryAudio_' + (audioCounter++);
+    const playerId = 'audioPlayer_' + audioId;
+
+    return `
+    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 card-hover transition-all duration-200 overflow-hidden relative" data-script-id="${escapeHtml(scriptId)}">
+      <!-- 删除按钮（右上角） -->
+      <button onclick="deleteScript('${escapeHtml(scriptId).replace(/'/g, "\\'")}')" class="absolute top-2 right-2 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors z-10" title="删除话术">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+      <!-- 卡片内容 -->
+      <div class="p-5 space-y-4">
+        <!-- 顶部：星星 + 标签行 -->
+        <div class="flex items-center gap-2 flex-wrap pr-7">
+          <i data-lucide="star" class="w-4 h-4 fill-yellow-400 text-yellow-400 flex-shrink-0"></i>
+          ${parentTypes.map((t, i) => `<span class="px-2.5 py-1 rounded-lg text-xs font-medium ${tagColors[i % tagColors.length]}">${escapeHtml(t)}</span>`).join('')}
+          ${problemTypes.map((t, i) => `<span class="px-2.5 py-1 rounded-lg text-xs font-medium ${tagColors[(parentTypes.length + i) % tagColors.length]}">${escapeHtml(t)}</span>`).join('')}
+          ${(item.consultant_name) ? `<span class="text-xs text-gray-400 ml-auto">${escapeHtml(item.consultant_name)}${item.call_date ? ' · ' + escapeHtml(item.call_date) : ''}</span>` : ''}
+        </div>
+
+        <!-- 大分数 + 场景 -->
+        <div class="flex items-baseline gap-4">
+          <span class="text-4xl font-extrabold ${sc.text} flex-shrink-0 leading-none">${item.score || '-'}<span class="text-lg ml-1">分</span></span>
+          ${item.scene ? `<p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">场景：${escapeHtml(item.scene)}</p>` : ''}
+        </div>
+
+        <!-- 话术原文（完整展示，不截断） -->
+        <div class="relative bg-gray-50 dark:bg-gray-750 rounded-xl px-4 py-3 border-l-[3px] border-amber-300 dark:border-amber-600">
+          <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">${escapeHtml(item.content)}</p>
+        </div>
+
+        <!-- 为什么好 -->
+        <div class="flex items-start gap-2 bg-green-50 dark:bg-green-900/10 rounded-xl px-3.5 py-2.5">
+          <i data-lucide="check" class="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5"></i>
+          <div class="min-w-0">
+            <span class="text-xs font-semibold text-green-600 dark:text-green-400">为什么好：</span>
+            <span class="text-xs text-green-700 dark:text-green-300 leading-relaxed">${escapeHtml(item.why_good || '话术表达清晰，能有效引导沟通，建立信任关系')}</span>
+          </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="flex items-center gap-2 pt-1 flex-wrap">
+          ${item.audio_url ? `
+          <button onclick="toggleLibraryAudio('${playerId}', '${escapeHtml(item.audio_url).replace(/'/g, "\\'")}')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400 transition-colors">
+            <i data-lucide="play" class="w-3.5 h-3.5"></i> 听原声
+          </button>` : ''}
+          <button onclick="copyScript('${escapeHtml(item.content).replace(/'/g, "\\'").replace(/\\/g, "\\\\")}')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400 transition-colors">
+            <i data-lucide="clipboard-list" class="w-3.5 h-3.5"></i> 复制话术
+          </button>
+          <button onclick="addToPlan('${escapeHtml(scriptId).replace(/'/g, "\\'")}')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/40 text-xs font-medium text-primary-600 dark:text-primary-400 transition-colors">
+            <i data-lucide="target" class="w-3.5 h-3.5"></i> 加入练习计划
+          </button>
+          <button onclick="shareScript('${escapeHtml(item.scene || item.content || '').substring(0, 60).replace(/'/g, "\\'")}')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400 transition-colors">
+            <i data-lucide="share-2" class="w-3.5 h-3.5"></i> 分享
+          </button>
+        </div>
+
+        <!-- 内联音频播放器（默认隐藏） -->
+        <div id="${playerId}" class="hidden mt-2 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl">
+          <audio id="${audioId}" controls class="w-full h-8" preload="none"></audio>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleLibraryAudio(playerId, audioUrl) {
+  const player = document.getElementById(playerId);
+  if (!player) return;
+  const audioEl = player.querySelector('audio');
+  if (!audioEl) return;
+
+  if (player.classList.contains('hidden')) {
+    player.classList.remove('hidden');
+    audioEl.src = audioUrl;
+    audioEl.load();
+    audioEl.play().catch(() => {});
+  } else {
+    audioEl.pause();
+    player.classList.add('hidden');
+    audioEl.src = '';
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function copyScript(content) {
+  navigator.clipboard.writeText(content).then(() => {
+    showToast('话术已复制到剪贴板', 'success');
+  }).catch(() => {
+    showToast('复制失败，请手动复制', 'error');
+  });
+}
+
+function addToPlan(scriptId) {
+  showToast('已加入练习计划', 'success');
+}
+
+function shareScript(text) {
+  if (navigator.share) {
+    navigator.share({ title: 'CallCoach 优秀话术', text: text }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(text).then(() => showToast('话术已复制，可粘贴分享', 'success')).catch(() => {});
+  }
+}
+
+async function deleteScript(scriptId) {
+  if (!confirm('确定删除该话术？删除后不可恢复。')) return;
+  try {
+    const data = await api('/api/library/' + encodeURIComponent(scriptId), { method: 'DELETE' });
+    if (data.success) {
+      showToast('话术已删除', 'success');
+      loadLibrary();
+    } else {
+      showToast('删除失败: ' + (data.error || data.message || '未知错误'), 'error');
+    }
+  } catch (e) {
+    showToast('删除失败: ' + e.message, 'error');
+  }
+}
+
+function formatFileSize(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const k = 1024;
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + units[i];
+}
+
+// ==================== 话术上传 ====================
+let libraryAudioBlob = null;
+let libraryAudioFileName = '';
+
+function showLibraryUpload() {
+  document.getElementById('libraryUploadModal').classList.remove('hidden');
+  // 重置表单
+  document.getElementById('libraryScriptText').value = '';
+  document.getElementById('librarySceneInput').value = '';
+  document.getElementById('libraryScoreInput').value = '80';
+  document.getElementById('libraryParentTypeInput').value = '';
+  document.getElementById('libraryProblemTypeInput').value = '';
+  document.getElementById('libraryWhyGoodInput').value = '';
+  document.getElementById('libraryAudioLabel').textContent = '选择或拖拽音频文件（支持 mp3/wav/m4a）';
+  document.getElementById('libraryTxtLabel').textContent = '上传txt文件（自动提取文本）';
+  document.getElementById('libraryAudioPreview').classList.add('hidden');
+  libraryAudioBlob = null;
+  libraryAudioFileName = '';
+  lucide.createIcons();
+}
+
+function handleLibraryAudioSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  libraryAudioBlob = file;
+  libraryAudioFileName = file.name;
+  document.getElementById('libraryAudioLabel').textContent = '已选择: ' + file.name;
+  // 预览
+  const preview = document.getElementById('libraryAudioPreview');
+  const audioEl = document.getElementById('libraryAudioPreviewEl');
+  preview.classList.remove('hidden');
+  audioEl.src = URL.createObjectURL(file);
+}
+
+function handleLibraryTxtSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('libraryTxtLabel').textContent = '已选择: ' + file.name;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('libraryScriptText').value = e.target.result;
+  };
+  reader.readAsText(file);
+}
+
+async function submitLibraryUpload() {
+  const content = document.getElementById('libraryScriptText').value.trim();
+  if (!content) {
+    showToast('请输入或上传话术原文', 'warning');
+    return;
+  }
+
+  const scene = document.getElementById('librarySceneInput').value.trim();
+  const score = parseInt(document.getElementById('libraryScoreInput').value) || 80;
+  const parentType = document.getElementById('libraryParentTypeInput').value.trim();
+  const problemType = document.getElementById('libraryProblemTypeInput').value.trim();
+  const whyGood = document.getElementById('libraryWhyGoodInput').value.trim();
+
+  const formData = new FormData();
+  formData.append('content', content);
+  formData.append('scene', scene);
+  formData.append('score', score.toString());
+  formData.append('parent_type', parentType);
+  formData.append('problem_type', problemType);
+  formData.append('why_good', whyGood);
+  if (libraryAudioBlob) {
+    formData.append('audio', libraryAudioBlob, libraryAudioFileName);
+  }
+
+  try {
+    const resp = await fetch(API_BASE + '/api/library/upload', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await resp.json();
+    if (data.success) {
+      showToast('话术上传成功！', 'success');
+      document.getElementById('libraryUploadModal').classList.add('hidden');
+      loadLibrary();
+    } else {
+      showToast('上传失败: ' + (data.error || '未知错误'), 'error');
+    }
+  } catch (e) {
+    showToast('上传失败: ' + e.message, 'error');
+  }
+}
+
+// ==================== COMPARE ====================
+let compareMode = '1v1';
+
+function switchCompareMode(mode) {
+  compareMode = mode;
+  // 更新 tab 样式
+  document.querySelectorAll('[id^="compareMode"]').forEach(btn => btn.classList.remove('bg-white', 'dark:bg-gray-700', 'text-gray-900', 'dark:text-white', 'shadow-sm'));
+  document.getElementById('compareMode1').classList.add('text-gray-500', 'dark:text-gray-400');
+  document.getElementById('compareMode2').classList.add('text-gray-500', 'dark:text-gray-400');
+  document.getElementById('compareMode3').classList.add('text-gray-500', 'dark:text-gray-400');
+  const activeBtn = document.getElementById('compareMode' + (mode === '1v1' ? '1' : mode === '1vT' ? '2' : '3'));
+  activeBtn.classList.remove('text-gray-500', 'dark:text-gray-400');
+  activeBtn.classList.add('bg-white', 'dark:bg-gray-700', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+
+  // 切换选择器
+  document.getElementById('compareSelector1v1').classList.toggle('hidden', mode !== '1v1');
+  document.getElementById('compareSelector1vT').classList.toggle('hidden', mode !== '1vT');
+
+  // 清空图表
+  ['chart-compare-radar', 'chart-compare-bar', 'chart-compare-trend'].forEach(id => {
+    const chart = echarts.getInstanceByDom(document.getElementById(id));
+    if (chart) chart.clear();
+  });
+  document.getElementById('compareGapAnalysis').classList.add('hidden');
+  document.getElementById('compareGapContent').innerHTML = '';
+}
+
+async function initCompareSelectors() {
+  try {
+    const consultants = await api('/api/consultants').catch(() => []);
+    const options = (consultants || []).map(c =>
+      `<option value="${c.consultant_id || c.consultant_name}">${c.consultant_name}</option>`
+    ).join('');
+    ['compareC1', 'compareC2', 'compareC1Team'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '<option value="">-- 请选择顾问 --</option>' + options;
+    });
+  } catch (e) {
+    console.error('Init compare selectors error:', e);
+  }
+}
+
+async function loadCompare() {
+  let c1Id, c2Id, c1Name, c2Name;
+
+  if (compareMode === '1v1') {
+    c1Id = document.getElementById('compareC1')?.value || '';
+    c2Id = document.getElementById('compareC2')?.value || '';
+    c1Name = document.getElementById('compareC1')?.selectedOptions[0]?.text || c1Id;
+    c2Name = document.getElementById('compareC2')?.selectedOptions[0]?.text || c2Id;
+  } else if (compareMode === '1vT') {
+    c1Id = document.getElementById('compareC1Team')?.value || '';
+    c1Name = document.getElementById('compareC1Team')?.selectedOptions[0]?.text || c1Id;
+    c2Name = '团队平均';
+  } else {
+    return;
+  }
+
+  if (!c1Id) return;
+
+  try {
+    const [allCalls, consultants] = await Promise.all([
+      api('/api/calls').catch(() => []),
+      api('/api/consultants').catch(() => [])
+    ]);
+
+    // 六维能力指标体系（0-10分制）
+    const dimLabels = ['开场白', 'SPIN覆盖', '需求挖掘', '产品展示', '异议处理', '成交推进'];
+
+    const isDark = html.classList.contains('dark');
+    const textColor = isDark ? '#94a3b8' : '#6b7280';
+    const axisColor = isDark ? '#334155' : '#e5e7eb';
+
+    // 获取某通通话的六维得分（0-10制）
+    const getCallSixDim = (c) => {
+      const ds = c.dimension_scores || {};
+      const spin = c.spin_detail || {};
+      // SPIN覆盖分：四维度中 covered=true 的比例 × 10
+      let spinCovered = 0;
+      ['situation', 'problem', 'implication', 'need_payoff'].forEach(d => {
+        if (spin[d] && spin[d].covered) spinCovered++;
+      });
+      const spinScore = Math.round((spinCovered / 4) * 10);
+      // dimension_scores 原始 0-100，除以10转 0-10（SPIN覆盖除外，它已经是 0-10）
+      const raw = [
+        ds.opening || 0,
+        spinScore,
+        ds.needs_discovery || 0,
+        ds.course_presentation || 0,
+        ds.objection_handling || 0,
+        ds.closing || 0,
+      ];
+      return raw.map((v, i) => i === 1 ? v : parseFloat((v / 10).toFixed(1)));
+    };
+
+    // 获取某个顾问/分组在各维度的平均得分
+    const getDimScores = (id) => {
+      const getCalls = () => {
+        if (id === '__TEAM__') {
+          return (allCalls || []).filter(c => c.has_analysis);
+        }
+        return (allCalls || []).filter(c =>
+          (c.consultant_id && String(c.consultant_id) === String(id)) ||
+          (c.consultant_name && c.consultant_name === id)
+        );
+      };
+      const calls = getCalls();
+      if (calls.length === 0) return [0, 0, 0, 0, 0, 0];
+      // 每个维度收集所有通话的得分
+      const dimScoresArr = Array.from({ length: 6 }, () => []);
+      calls.forEach(c => {
+        const scores = getCallSixDim(c);
+        scores.forEach((v, i) => { if (v > 0) dimScoresArr[i].push(v); });
+      });
+      return dimScoresArr.map(vals =>
+        vals.length > 0 ? parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)) : 0
+      );
+    };
+
+    // 获取某顾问按周的趋势数据
+    const getWeeklyTrend = (id) => {
+      const calls = (allCalls || []).filter(c =>
+        (c.consultant_id && String(c.consultant_id) === String(id)) ||
+        (c.consultant_name && c.consultant_name === id)
+      );
+      if (calls.length === 0) return { weeks: [], data: [] };
+
+      // 按创建时间分组到周
+      const weekMap = {};
+      calls.forEach(c => {
+        const createdAt = c.created_at || c.call_time || '';
+        if (!createdAt) return;
+        try {
+          const d = new Date(createdAt);
+          if (isNaN(d.getTime())) return;
+          // 计算 ISO 周
+          const temp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+          const dayNum = temp.getUTCDay() || 7;
+          temp.setUTCDate(temp.getUTCDate() + 4 - dayNum);
+          const yearStart = new Date(Date.UTC(temp.getUTCFullYear(), 0, 1));
+          const weekNo = Math.ceil((((temp - yearStart) / 86400000) + 1) / 7);
+          const weekKey = `${temp.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+          if (!weekMap[weekKey]) weekMap[weekKey] = [];
+          const overall = c.overall_score || 0;
+          if (overall > 0) weekMap[weekKey].push(overall);
+        } catch (e) {}
+      });
+
+      const sorted = Object.entries(weekMap).sort();
+      const weeks = sorted.slice(-6).map(([wk]) => {
+        const [y, w] = wk.split('-W');
+        return `W${w}`;
+      });
+      const data = sorted.slice(-6).map(([, scores]) =>
+        parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1))
+      );
+      return { weeks, data };
+    };
+
+    const s1 = getDimScores(c1Id);
+    const s2 = compareMode === '1v1' ? getDimScores(c2Id) : getDimScores('__TEAM__');
+
+    // === 雷达图 ===
+    const compareRadar = echarts.getInstanceByDom(document.getElementById('chart-compare-radar')) || echarts.init(document.getElementById('chart-compare-radar'));
+    compareRadar.setOption({
+      tooltip: { backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: axisColor, textStyle: { color: isDark ? '#f1f5f9' : '#111827' } },
+      legend: { data: [c1Name, c2Name], bottom: 0, textStyle: { color: textColor, fontSize: 12 } },
+      radar: {
+        indicator: dimLabels.map(name => ({ name, max: 10 })),
+        axisName: { color: textColor, fontSize: 11 },
+        splitArea: { areaStyle: { color: isDark ? ['rgba(30,41,59,0.3)', 'rgba(30,41,59,0.1)'] : ['rgba(248,250,252,0.8)', 'rgba(248,250,252,0.3)'] } },
+        splitLine: { lineStyle: { color: axisColor } },
+        radius: '70%',
+        center: ['50%', '45%']
+      },
+      series: [{
+        type: 'radar',
+        data: [
+          { value: s1, name: c1Name, areaStyle: { color: 'rgba(59,130,246,0.15)' }, lineStyle: { color: '#3b82f6', width: 2.5 }, itemStyle: { color: '#3b82f6' }, symbolSize: 6 },
+          { value: s2, name: c2Name, areaStyle: { color: 'rgba(16,185,129,0.15)' }, lineStyle: { color: '#10b981', width: 2.5 }, itemStyle: { color: '#10b981' }, symbolSize: 6 }
+        ]
+      }]
+    }, true);
+
+    // === 柱状图 ===
+    const compareBar = echarts.getInstanceByDom(document.getElementById('chart-compare-bar')) || echarts.init(document.getElementById('chart-compare-bar'));
+    compareBar.setOption({
+      tooltip: { trigger: 'axis', backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: axisColor, textStyle: { color: isDark ? '#f1f5f9' : '#111827' } },
+      legend: { data: [c1Name, c2Name], bottom: 0, textStyle: { color: textColor, fontSize: 12 } },
+      grid: { left: '8%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
+      xAxis: { type: 'category', data: dimLabels, axisLine: { lineStyle: { color: axisColor } }, axisLabel: { color: textColor, fontSize: 11 } },
+      yAxis: { type: 'value', max: 10, axisLine: { show: false }, splitLine: { lineStyle: { color: axisColor } }, axisLabel: { color: textColor } },
+      series: [
+        { name: c1Name, type: 'bar', data: s1, barGap: '10%', itemStyle: { color: '#3b82f6', borderRadius: [6, 6, 0, 0] } },
+        { name: c2Name, type: 'bar', data: s2, itemStyle: { color: '#10b981', borderRadius: [6, 6, 0, 0] } }
+      ]
+    }, true);
+
+    // === 趋势图 ===
+    const trend1 = getWeeklyTrend(c1Id);
+    const trend2 = compareMode === '1v1' ? getWeeklyTrend(c2Id) : getWeeklyTrend('__TEAM__');
+
+    // 合并周标签
+    const allWeeks = [...new Set([...trend1.weeks, ...trend2.weeks])].sort();
+    const padTrend = (trend, weeks) => {
+      const map = {};
+      trend.weeks.forEach((w, i) => map[w] = trend.data[i]);
+      return weeks.map(w => map[w] !== undefined ? map[w] : null);
+    };
+    const t1Data = padTrend(trend1, allWeeks);
+    const t2Data = padTrend(trend2, allWeeks);
+
+    const trendLabels = allWeeks.length > 0 ? allWeeks : ['W1', 'W2', 'W3', 'W4', 'W5', 'W6'];
+    const t1Display = t1Data.length > 0 ? t1Data : [70, 72, 75, 74, 78, 76];
+    const t2Display = t2Data.length > 0 ? t2Data : [75, 77, 79, 80, 81, 82];
+
+    const compareTrend = echarts.getInstanceByDom(document.getElementById('chart-compare-trend')) || echarts.init(document.getElementById('chart-compare-trend'));
+    compareTrend.setOption({
+      tooltip: { trigger: 'axis', backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: axisColor, textStyle: { color: isDark ? '#f1f5f9' : '#111827' } },
+      legend: { data: [c1Name, c2Name], bottom: 0, textStyle: { color: textColor, fontSize: 12 } },
+      grid: { left: '3%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
+      xAxis: { type: 'category', data: trendLabels, axisLine: { lineStyle: { color: axisColor } }, axisLabel: { color: textColor, fontSize: 11 } },
+      yAxis: { type: 'value', min: 30, max: 100, axisLine: { show: false }, splitLine: { lineStyle: { color: axisColor } }, axisLabel: { color: textColor } },
+      series: [
+        { name: c1Name, type: 'line', smooth: true, data: t1Display, lineStyle: { color: '#3b82f6', width: 2.5 }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(59,130,246,0.25)' }, { offset: 1, color: 'rgba(59,130,246,0.03)' }] } }, itemStyle: { color: '#3b82f6' }, symbol: 'circle', symbolSize: 6 },
+        { name: c2Name, type: 'line', smooth: true, data: t2Display, lineStyle: { color: '#10b981', width: 2.5 }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(16,185,129,0.25)' }, { offset: 1, color: 'rgba(16,185,129,0.03)' }] } }, itemStyle: { color: '#10b981' }, symbol: 'circle', symbolSize: 6 }
+      ]
+    }, true);
+
+    // === 顾问能力热力图 ===
+    const hmDimLabels = ['开场白', 'SPIN覆盖', '需求挖掘', '产品展示', '异议处理', '成交推进'];
+
+    // 汇总每个顾问在每个维度的得分
+    const consultantDimScores = {};
+    (allCalls || []).forEach(c => {
+      const cid = c.consultant_id || c.consultant_name || '';
+      if (!cid || !c.has_analysis) return;
+      const sname = consultants.find(co => (co.consultant_id || co.consultant_name) === cid);
+      const cname = (sname && (sname.consultant_name || sname.name)) || c.consultant_name || cid;
+      if (!consultantDimScores[cid]) {
+        consultantDimScores[cid] = { name: cname, dims: {} };
+      }
+      const scores = getCallSixDim(c);
+      hmDimLabels.forEach((label, i) => {
+        const val = scores[i];
+        if (val > 0) {
+          if (!consultantDimScores[cid].dims[label]) {
+            consultantDimScores[cid].dims[label] = [];
+          }
+          consultantDimScores[cid].dims[label].push(val);
+        }
+      });
+    });
+
+    const hmConsultants = [];
+    const hmSpinData = [];
+    Object.entries(consultantDimScores).forEach(([cid, info], ci) => {
+      hmConsultants.push(info.name);
+      hmDimLabels.forEach((label, di) => {
+        const scores = (info.dims[label] || []);
+        const avg = scores.length > 0 ? parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)) : 0;
+        hmSpinData.push([di, ci, avg]);
+      });
+    });
+
+    const heatmapChart = echarts.getInstanceByDom(document.getElementById('chart-heatmap')) || echarts.init(document.getElementById('chart-heatmap'));
+    if (hmConsultants.length > 0) {
+      heatmapChart.setOption({
+        tooltip: {
+          position: 'top',
+          backgroundColor: isDark ? '#1e293b' : '#fff',
+          borderColor: axisColor,
+          textStyle: { color: isDark ? '#f1f5f9' : '#111827' },
+          formatter: function(p) { return '<strong>' + hmConsultants[p.value[1]] + '</strong><br/>维度: ' + hmDimLabels[p.value[0]] + '<br/>得分: ' + p.value[2] + '分'; }
+        },
+        grid: { left: '15%', right: '5%', top: '5%', bottom: '15%' },
+        xAxis: { type: 'category', data: hmDimLabels, splitArea: { show: true }, axisLabel: { color: textColor }, axisLine: { lineStyle: { color: axisColor } } },
+        yAxis: { type: 'category', data: hmConsultants, splitArea: { show: true }, axisLabel: { color: textColor }, axisLine: { lineStyle: { color: axisColor } } },
+        visualMap: { min: 0, max: 10, calculable: true, orient: 'horizontal', left: 'center', bottom: '0%', inRange: { color: ['#e0f2fe', '#bae6fd', '#7dd3fc', '#38bdf8', '#0ea5e9', '#0284c7', '#0369a1'] }, textStyle: { color: textColor } },
+        series: [{ name: '得分', type: 'heatmap', data: hmSpinData, label: { show: true, color: isDark ? '#f1f5f9' : '#374151', fontSize: 12 }, emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.5)' } } }]
+      }, true);
+    } else {
+      heatmapChart.setOption({
+        title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: textColor, fontSize: 14 } }
+      }, true);
+    }
+
+    // === 差距分析 ===
+    const gapItems = [];
+    for (let i = 0; i < dimLabels.length; i++) {
+      const diff = s2[i] - s1[i];
+      if (Math.abs(diff) >= 0.5) {
+        const lower = diff > 0 ? c1Name : c2Name;
+        const higher = diff > 0 ? c2Name : c1Name;
+        gapItems.push({
+          dim: dimLabels[i],
+          lower,
+          higher,
+          diff: Math.abs(diff).toFixed(1),
+          lowerScore: s1[i],
+          higherScore: s2[i],
+        });
+      }
+    }
+
+    if (gapItems.length > 0) {
+      document.getElementById('compareGapAnalysis').classList.remove('hidden');
+      document.getElementById('compareGapContent').innerHTML = gapItems.map(g => `
+        <div class="flex items-start gap-4 p-4 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800">
+          <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-800/50 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="trending-up" class="w-5 h-5 text-amber-600"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 dark:text-white mb-1">
+              <span class="text-amber-600 font-bold">${escapeHtml(g.lower)}</span> 在「${escapeHtml(g.dim)}」比 <span class="text-gray-500">${escapeHtml(g.higher)}</span> 低 <span class="text-danger-500 font-bold">${g.diff}分</span>
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">${escapeHtml(g.lower)}得分 ${g.lowerScore.toFixed(1)} 分 vs ${escapeHtml(g.higher)}得分 ${g.higherScore.toFixed(1)} 分 · ${escapeHtml(g.dim)}</p>
+          </div>
+          <button onclick="showToast('专项训练功能开发中', 'info')" class="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium transition-colors">
+            <i data-lucide="target" class="w-3.5 h-3.5"></i> 生成专项训练
+          </button>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    } else {
+      document.getElementById('compareGapAnalysis').classList.add('hidden');
+    }
+
+  } catch (e) {
+    console.error('Compare load error:', e);
+  }
+}
+
+// ==================== DEFAULT ECHARTS INIT ====================
+function initCharts() {
+  const isDark = html.classList.contains('dark');
+  const textColor = isDark ? '#94a3b8' : '#6b7280';
+  const axisColor = isDark ? '#334155' : '#e5e7eb';
+
+  // Default trend (will be overwritten by real data)
+  const trendChart = echarts.getInstanceByDom(document.getElementById('chart-trend'));
+  if (trendChart) {
+    trendChart.setOption({
+      tooltip: { trigger: 'axis', backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: axisColor, textStyle: { color: isDark ? '#f1f5f9' : '#111827' } },
+      grid: { left: '3%', right: '4%', bottom: '3%', top: '5%', containLabel: true },
+      xAxis: { type: 'category', data: ['加载中...'], axisLine: { lineStyle: { color: axisColor } }, axisLabel: { color: textColor } },
+      yAxis: { type: 'value', min: 30, max: 100, axisLine: { show: false }, splitLine: { lineStyle: { color: axisColor } }, axisLabel: { color: textColor } },
+      series: [{ type: 'line', data: [0] }]
+    }, true);
+  }
+
+  // Default radar
+  const radarChart = echarts.getInstanceByDom(document.getElementById('chart-radar'));
+  if (radarChart) {
+    radarChart.setOption({
+      radar: {
+        indicator: [{ name: 'S-现状问题', max: 100 }, { name: 'P-困难挑战', max: 100 }, { name: 'I-影响后果', max: 100 }, { name: 'N-需求回报', max: 100 }],
+        axisName: { color: textColor },
+        radius: '65%',
+        center: ['50%', '50%']
+      },
+      series: [{ type: 'radar', data: [{ value: [0, 0, 0, 0], name: '加载中' }] }]
+    }, true);
+  }
+
+  window.addEventListener('resize', () => {
+    ['chart-trend', 'chart-radar', 'chart-bar', 'chart-pie', 'chart-heatmap', 'chart-compare-radar', 'chart-compare-bar', 'chart-compare-trend'].forEach(id => {
+      const chart = echarts.getInstanceByDom(document.getElementById(id));
+      if (chart) chart.resize();
+    });
+  });
+}
+
+// ==================== GLOBAL SEARCH ====================
+const globalSearch = document.getElementById('globalSearch');
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && !e.target.matches('input, textarea')) {
+    e.preventDefault();
+    globalSearch.focus();
+  }
+});
+
+// ==================== CLOSE DROPDOWNS ====================
+document.addEventListener('click', (e) => {
+  if (!userMenuBtn.contains(e.target) && !userMenu.contains(e.target)) {
+    userMenu.classList.add('hidden');
+  }
+});
+
+// ==================== STARTUP ====================
+async function init() {
+  await checkConnection();
+  setTimeout(initCharts, 200);
+
+  // Load all initial data
+  loadDashboard();
+  loadConsultants();
+}
+
+init();
+</script>
+</body>
+</html>
