@@ -1068,6 +1068,20 @@ const queueList = document.getElementById('queueList');
 const queueTitle = document.getElementById('queueTitle');
 let analysisTasks = [];
 
+function extractConsultantName(filename) {
+  // 去掉扩展名
+  const base = filename.replace(/\.[^.]+$/, '');
+  // 尝试提取中文名：2-4个连续汉字
+  const cnMatch = base.match(/[\u4e00-\u9fa5]{2,4}/);
+  if (cnMatch) return cnMatch[0];
+  // 尝试提取英文名：字母开头，不含数字和特殊符号
+  const enMatch = base.match(/^[A-Za-z]+/);
+  if (enMatch) return enMatch[0];
+  // 兜底：取第一个非数字非特殊符片段
+  const fallback = base.match(/[^\d\s*_\-\.]+/);
+  return fallback ? fallback[0] : '未知顾问';
+}
+
 async function startAnalysis() {
   if (selectedFiles.length === 0) {
     showToast('请先选择要分析的文件', 'warning');
@@ -1076,8 +1090,13 @@ async function startAnalysis() {
 
   const consultantSelect = document.getElementById('consultantSelect');
   const llmSelect = document.getElementById('llmSelect');
-  const consultantName = consultantSelect.value;
+  let consultantName = consultantSelect.value;
   const llmBackend = llmSelect.value;
+
+  // 从文件名自动识别顾问名
+  if (!consultantName && selectedFiles.length > 0) {
+    consultantName = extractConsultantName(selectedFiles[0].name);
+  }
 
   startAnalysisBtn.disabled = true;
   startAnalysisBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> 上传中...';
@@ -1374,20 +1393,33 @@ function updateDashboardCharts(stats) {
     }, true);
   }
 
-  // ---- SPIN 雷达图（来自 /api/stats spin_coverage） ----
-  const spinCov = (stats && stats.spin_coverage) || {};
+  // ---- 五维能力雷达图 ----
   const radarChart = echarts.getInstanceByDom(document.getElementById('chart-radar')) || echarts.init(document.getElementById('chart-radar'));
-  const spinDims = ['situation', 'problem', 'implication', 'need_payoff'];
-  const spinNames = ['S-现状问题', 'P-困难挑战', 'I-影响后果', 'N-需求回报'];
-  const radarValues = spinDims.map(dim => {
-    const d = spinCov[dim] || {};
-    return d.avg_quality || d.coverage_rate || 0;
-  });
+
+  // 优先使用 team_radar_avg（五维评分 0-10 制，需乘10）
+  const teamRadar = stats && stats.team_radar_avg;
+  let radarData, radarIndicators;
+  if (teamRadar && (teamRadar.opening + teamRadar.needs_discovery + teamRadar.course_presentation + teamRadar.objection_handling + teamRadar.closing) > 0) {
+    const dimKeys = ['opening', 'needs_discovery', 'course_presentation', 'objection_handling', 'closing'];
+    const dimLabels = ['开场破冰', '需求挖掘', '课程介绍', '异议处理', '成交推进'];
+    radarIndicators = dimLabels.map(n => ({ name: n, max: 100 }));
+    radarData = dimKeys.map(k => Math.round((teamRadar[k] || 0) * 10));
+  } else {
+    // 回退到 SPIN 覆盖
+    const spinCov = (stats && stats.spin_coverage) || {};
+    const spinDims = ['situation', 'problem', 'implication', 'need_payoff'];
+    const spinNames = ['S-现状问题', 'P-困难挑战', 'I-影响后果', 'N-需求回报'];
+    radarIndicators = spinNames.map(n => ({ name: n, max: 100 }));
+    radarData = spinDims.map(dim => {
+      const d = spinCov[dim] || {};
+      return Math.round(d.avg_quality || d.coverage_rate || 0);
+    });
+  }
 
   radarChart.setOption({
     tooltip: { backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: axisColor, textStyle: { color: isDark ? '#f1f5f9' : '#111827' } },
     radar: {
-      indicator: spinNames.map((name, i) => ({ name, max: 100 })),
+      indicator: radarIndicators,
       axisName: { color: textColor },
       splitArea: { areaStyle: { color: isDark ? ['rgba(30,41,59,0.5)', 'rgba(30,41,59,0.3)'] : ['rgba(250,250,250,0.5)', 'rgba(240,240,240,0.3)'] } },
       splitLine: { lineStyle: { color: axisColor } },
@@ -1397,8 +1429,8 @@ function updateDashboardCharts(stats) {
     series: [{
       type: 'radar',
       data: [
-        { value: radarValues, name: '团队平均', areaStyle: { color: 'rgba(59,130,246,0.2)' }, lineStyle: { color: '#3b82f6', width: 2 }, itemStyle: { color: '#3b82f6' } },
-        { value: [85, 85, 85, 85], name: '目标线', areaStyle: { color: 'rgba(16,185,129,0.08)' }, lineStyle: { color: '#10b981', width: 2, type: 'dashed' }, itemStyle: { color: '#10b981' }, symbol: 'none' }
+        { value: radarData, name: '团队平均', areaStyle: { color: 'rgba(59,130,246,0.2)' }, lineStyle: { color: '#3b82f6', width: 2 }, itemStyle: { color: '#3b82f6' } },
+        { value: [70, 70, 70, 70, 70].slice(0, radarIndicators.length), name: '目标线', areaStyle: { color: 'rgba(16,185,129,0.08)' }, lineStyle: { color: '#10b981', width: 2, type: 'dashed' }, itemStyle: { color: '#10b981' }, symbol: 'none' }
       ]
     }]
   }, true);
@@ -2232,10 +2264,25 @@ async function openConsultantDiagnosis(consultantId) {
   }
 }
 
-function addConsultant() {
+async function addConsultant() {
   const name = prompt('请输入新顾问姓名：');
   if (!name || !name.trim()) return;
-  showToast('顾问 ' + name.trim() + ' 添加成功！请在后续上传通话时选择此顾问。', 'success');
+  try {
+    const result = await fetch(API_BASE + '/api/consultant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim() })
+    });
+    const data = await result.json();
+    if (result.ok) {
+      showToast(data.message || '添加成功', 'success');
+      loadConsultants();
+    } else {
+      showToast(data.error || '添加失败', 'error');
+    }
+  } catch (e) {
+    showToast('请求失败：' + e.message, 'error');
+  }
 }
 
 async function deleteConsultant(consultantId) {

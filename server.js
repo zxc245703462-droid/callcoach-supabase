@@ -177,6 +177,36 @@ app.get('/api/consultants', async (req, res) => {
   }
 });
 
+// ---- 添加顾问 ----
+app.post('/api/consultant', async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: '顾问姓名不能为空' });
+    }
+    const consultantName = name.trim();
+    const consultantId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+    const { data, error } = await supabase.from('consultants').insert({
+      consultant_id: consultantId,
+      consultant_name: consultantName,
+      processing_status: 'PENDING',
+      deleted_at: null
+    }).select('id').single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      consultant_id: consultantId,
+      consultant_name: consultantName,
+      message: `顾问「${consultantName}」添加成功`
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ---- 通话列表 ----
 app.get('/api/calls', async (req, res) => {
   try {
