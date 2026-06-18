@@ -1100,6 +1100,7 @@ app.get('/api/config', async (req, res) => {
   res.json({
     backend: 'supabase',
     llm_backend: DEEPSEEK_API_KEY ? (IS_ARK ? 'ark_deepseek' : 'deepseek') : 'rule_based',
+    llm_is_ark: IS_ARK,
     llm_base_url: DEEPSEEK_BASE_URL,
     llm_model: LLM_MODEL
   });
@@ -1107,11 +1108,16 @@ app.get('/api/config', async (req, res) => {
 
 // ==================== DeepSeek LLM 分析 ====================
 
-/** 调用 DeepSeek Chat API */
+/** 调用 DeepSeek Chat API（自动检测 Ark / 标准端点） */
 async function callDeepSeek(systemPrompt, userMessage, maxTokens = 4096) {
-  const url = IS_ARK
-    ? `${DEEPSEEK_BASE_URL}/chat/completions`
-    : `${DEEPSEEK_BASE_URL}/v1/chat/completions`;
+  // 运行时检测端点类型（不依赖启动时的 IS_ARK）
+  const isArk = DEEPSEEK_API_KEY.startsWith('ark-') || (LLM_MODEL || '').startsWith('ep-');
+  const baseUrl = isArk ? 'https://ark.cn-beijing.volces.com/api/v3' : DEEPSEEK_BASE_URL;
+  const url = isArk
+    ? `${baseUrl}/chat/completions`
+    : `${baseUrl}/v1/chat/completions`;
+
+  console.log(`[LLM] 调用: ${url} (模型: ${LLM_MODEL}, isArk: ${isArk})`);
   const response = await fetch(url, {
     method: 'POST',
     headers: {
