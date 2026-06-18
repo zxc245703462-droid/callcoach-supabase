@@ -242,7 +242,7 @@ app.get('/api/calls', async (req, res) => {
         has_analysis: !!r.analysis_json,
         transcript_length: (r.transcript_raw || '').length,
         tags: analysis.tags || [],
-        cost: 0
+        cost: (analysis._cost != null) ? analysis._cost : 0
       };
     });
     res.json(result);
@@ -986,7 +986,7 @@ app.post('/api/generate-all-reports', async (req, res) => {
   }
 });
 
-// ---- 通话分析 (规则引擎) ----
+// ---- 通话分析 ----
 app.post('/api/analyze-call/:call_id', async (req, res) => {
   try {
     const { data: record } = await supabase.from('calls')
@@ -994,7 +994,20 @@ app.post('/api/analyze-call/:call_id', async (req, res) => {
     if (!record) return res.status(404).json({ error: '通话不存在' });
 
     const transcript = record.transcript_raw || '';
-    const analysis = ruleBasedAnalysis(transcript, record.consultant_name);
+
+    let analysis, cost, llmUsed;
+    if (DEEPSEEK_API_KEY) {
+      const deepseekResult = await deepseekAnalysis(transcript, record.consultant_name);
+      analysis = deepseekResult.result;
+      cost = deepseekResult.cost;
+      llmUsed = deepseekResult.fallback ? 'rule_based(fallback)' : 'deepseek';
+    } else {
+      analysis = ruleBasedAnalysis(transcript, record.consultant_name);
+      cost = 0;
+      llmUsed = 'rule_based';
+    }
+    // 将 cost 存入 analysis_json 中
+    analysis._cost = cost;
 
     await supabase.from('calls').update({
       analysis_json: analysis,
@@ -1004,7 +1017,9 @@ app.post('/api/analyze-call/:call_id', async (req, res) => {
     res.json({
       success: true,
       call_id: record.call_id,
-      overall_score: analysis.script_score?.overall || 0
+      overall_score: analysis.script_score?.overall || 0,
+      llm_used: llmUsed,
+      cost
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -1035,7 +1050,19 @@ app.post('/api/run-pipeline', async (req, res) => {
           continue;
         }
 
-        const analysis = ruleBasedAnalysis(transcript, record.consultant_name);
+        let analysis, cost, llmUsed;
+        if (DEEPSEEK_API_KEY) {
+          const deepseekResult = await deepseekAnalysis(transcript, record.consultant_name);
+          analysis = deepseekResult.result;
+          cost = deepseekResult.cost;
+          llmUsed = deepseekResult.fallback ? 'rule_based(fallback)' : 'deepseek';
+        } else {
+          analysis = ruleBasedAnalysis(transcript, record.consultant_name);
+          cost = 0;
+          llmUsed = 'rule_based';
+        }
+        analysis._cost = cost;
+
         await supabase.from('calls').update({
           analysis_json: analysis,
           processing_status: 'ANALYZED'
@@ -1044,7 +1071,9 @@ app.post('/api/run-pipeline', async (req, res) => {
         results.push({
           call_id: cid,
           record_id: record.id,
-          overall_score: analysis.script_score?.overall || 0
+          overall_score: analysis.script_score?.overall || 0,
+          llm_used: llmUsed,
+          cost
         });
       } catch (e) {
         errors.push({ call_id: cid, error: e.message });
@@ -1072,6 +1101,148 @@ app.get('/api/config', async (req, res) => {
     llm_model: LLM_MODEL
   });
 });
+
+// ==================== DeepSeek LLM 分析 ====================
+
+/** 调用 DeepSeek Chat API */
+async function callDeepSeek(systemPrompt, userMessage, maxTokens = 4096) {
+  const url = `${DEEPSEEK_BASE_URL}/v1/chat/completions`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: LLM_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage }
+      ],
+      temperature: 0.3,
+      max_tokens: maxTokens
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`DeepSeek API error ${response.status}: ${errText}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content || '';
+  const usage = data.usage || {};
+
+  return {
+    text: content,
+    cost: (usage.prompt_tokens || 0) * 0.001 + (usage.completion_tokens || 0) * 0.002,
+    usage
+  };
+}
+
+/** 从 LLM 返回文本中提取 JSON（兼容 markdown 代码块包裹） */
+function extractJson(text) {
+  const cleaned = text.trim();
+  // 尝试解析 ```json ... ``` 包裹的
+  const mdMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const raw = mdMatch ? mdMatch[1].trim() : cleaned;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    // 尝试修复常见 JSON 问题：中文引号等
+    const fixed = raw
+      .replace(/[\u201c\u201d]/g, '"')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/\n/g, '\\n');
+    try { return JSON.parse(fixed); } catch { return null; }
+  }
+}
+
+/** 使用 DeepSeek 分析通话文本 */
+async function deepseekAnalysis(transcript, consultantName) {
+  const systemPrompt = `你是销售话术分析专家，负责分析教育行业电话销售通话。用中文回复，仅输出 JSON，不要任何解释。
+
+分析维度：
+1. SPIN 法：检测销售是否使用 S-现状问题、P-困难挑战、I-影响后果、N-需求回报 四种提问
+2. 五维评分(0-100)：开场破冰、需求挖掘、课程介绍、异议处理、成交推进、总分
+3. 异议处理分析
+4. 亮点与待改进总结
+5. 黄金话术提炼
+
+返回的 JSON 必须严格符合以下格式：
+{
+  "objection_handling": [{ "objection_type": "异议类型", "handled": true/false, "response_quality": 0-100, "suggested_response": "改进建议" }],
+  "spin_analysis": {
+    "situation": { "label": "S-现状问题", "covered": true/false, "quality_score": 0-100, "keywords": ["匹配到的关键词"], "missing_points": ["未覆盖的点"] },
+    "problem": { "label": "P-困难挑战", "covered": true/false, "quality_score": 0-100, "keywords": [], "missing_points": [] },
+    "implication": { "label": "I-影响后果", "covered": true/false, "quality_score": 0-100, "keywords": [], "missing_points": [] },
+    "need_payoff": { "label": "N-需求回报", "covered": true/false, "quality_score": 0-100, "keywords": [], "missing_points": [] }
+  },
+  "script_score": { "opening": 0-100, "needs_discovery": 0-100, "course_presentation": 0-100, "objection_handling": 0-100, "closing": 0-100, "overall": 0-100 },
+  "key_phrases_used": ["优质话术1", "优质话术2"],
+  "missed_opportunities": ["错失的机会1", "错失的机会2"],
+  "highlight_spans": [{ "start": 0, "end": 20, "label": "亮点标签" }],
+  "spark_report": {
+    "strengths": ["优势点1", "优势点2"],
+    "areas": ["待提升领域1", "待提升领域2"],
+    "revision_priority": ["最优先改进的领域"],
+    "potential": "一句话总结潜力提升方向",
+    "keep_going": "一句鼓励的话"
+  },
+  "golden_scripts": [{ "text": "优质话术原文", "scene": "适用场景", "reason": "为什么好" }],
+  "tags": ["标签1", "标签2", "标签3"],
+  "parent_type": ["理性分析型|价格敏感型|决策拖延型|信任需求型"],
+  "problem_types": ["问题类型"],
+  "is_excellent": true/false,
+  "excellence_reason": "优秀理由",
+  "best_script_moments": [{ "time": "通话阶段", "text": "话术内容", "score": 0-100, "comment": "点评" }],
+  "metrics": { "push_inquiry_ratio": "60%", "push_count": 0-999, "inquiry_count": 0-999, "speaking_ratio": "55%" }
+}
+
+通话文本长度可能很长，请仔细阅读后给出客观评价。务必输出完整 JSON，不要省略任何字段。`;
+
+  const userMessage = `请分析以下教育顾问 "${consultantName}" 的通话记录，返回 JSON：\n\n${transcript.slice(0, 15000)}`;
+
+  let result;
+  try {
+    result = await callDeepSeek(systemPrompt, userMessage, 4096);
+  } catch (e) {
+    console.error('[DeepSeek] API 调用失败，回退规则引擎:', e.message);
+    return { result: ruleBasedAnalysis(transcript, consultantName), cost: 0, fallback: true, error: e.message };
+  }
+
+  const parsed = extractJson(result.text);
+
+  if (!parsed || !parsed.spin_analysis) {
+    console.error('[DeepSeek] 无法解析 LLM 输出为有效 JSON，回退规则引擎');
+    console.error('[DeepSeek] Raw:', result.text.slice(0, 500));
+    return { result: ruleBasedAnalysis(transcript, consultantName), cost: 0, fallback: true, error: 'JSON parse failed' };
+  }
+
+  // 补充缺失的默认字段
+  const defaults = {
+    metrics: { push_inquiry_ratio: '50%', push_count: 0, inquiry_count: 0, speaking_ratio: '50%' },
+    golden_scripts: [],
+    tags: [],
+    parent_type: [],
+    problem_types: [],
+    highlight_spans: [],
+    best_script_moments: [],
+    key_phrases_used: [],
+    missed_opportunities: [],
+    spark_report: { strengths: [], areas: [], revision_priority: [], potential: '', keep_going: '' }
+  };
+  Object.entries(defaults).forEach(([k, v]) => { if (!parsed[k]) parsed[k] = v; });
+
+  // 确保 spark_report 子字段是数组
+  ['strengths', 'areas', 'revision_priority'].forEach(k => {
+    if (parsed.spark_report[k] && !Array.isArray(parsed.spark_report[k])) {
+      parsed.spark_report[k] = [parsed.spark_report[k]];
+    }
+  });
+
+  return { result: parsed, cost: result.cost, fallback: false };
+}
 
 // ==================== 规则引擎分析 ====================
 function ruleBasedAnalysis(transcript, consultantName) {
@@ -1195,7 +1366,7 @@ function jsonToText(obj) {
 app.listen(PORT, () => {
   console.log(`🚀 CallCoach Server v2 running on http://localhost:${PORT}`);
   console.log(`   Backend: Supabase (${SUPABASE_URL})`);
-  console.log(`   LLM: ${DEEPSEEK_API_KEY ? 'DeepSeek' : 'Rule-Based'}`);
+  console.log(`   LLM: ${DEEPSEEK_API_KEY ? `DeepSeek (${LLM_MODEL} @ ${DEEPSEEK_BASE_URL})` : 'Rule-Based（未配置 DEEPSEEK_API_KEY）'}`);
   console.log(`   Storage: Supabase Storage`);
 });
 
