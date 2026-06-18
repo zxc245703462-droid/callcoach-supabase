@@ -31,6 +31,44 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ==================== 数据库迁移 ====================
+async function runMigrations() {
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      },
+      body: JSON.stringify({ sql: `ALTER TABLE IF EXISTS custom_scripts ADD COLUMN IF NOT EXISTS problem_category TEXT DEFAULT ''; ALTER TABLE IF EXISTS custom_scripts ADD COLUMN IF NOT EXISTS problem_subtype TEXT DEFAULT '';` })
+    });
+    if (resp.ok) {
+      console.log('[Migration] problem_category / problem_subtype columns ready');
+    } else {
+      console.log('[Migration] RPC not available, trying REST SQL endpoint');
+      // 备用：通过 REST SQL 端点
+      const sqlResp = await fetch(`${SUPABASE_URL}/pg/v1/sql`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        },
+        body: JSON.stringify({ query: `ALTER TABLE IF EXISTS custom_scripts ADD COLUMN IF NOT EXISTS problem_category TEXT DEFAULT ''; ALTER TABLE IF EXISTS custom_scripts ADD COLUMN IF NOT EXISTS problem_subtype TEXT DEFAULT '';` })
+      });
+      if (sqlResp.ok) {
+        console.log('[Migration] columns added via SQL endpoint');
+      } else {
+        console.log('[Migration] manual migration may be needed. Schema SQL already updated.');
+      }
+    }
+  } catch (e) {
+    console.log('[Migration] skipped:', e.message);
+  }
+}
+runMigrations();
+
 // ==================== 中间件 ====================
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -245,7 +283,9 @@ app.get('/api/calls', async (req, res) => {
         has_analysis: !!r.analysis_json,
         transcript_length: (r.transcript_raw || '').length,
         tags: analysis.tags || [],
-        cost: (analysis._cost != null) ? analysis._cost : 0
+        cost: (analysis._cost != null) ? analysis._cost : 0,
+        problem_category: analysis.problem_category || '',
+        problem_subtype: analysis.problem_subtype || ''
       };
     });
     res.json(result);
@@ -676,6 +716,8 @@ app.get('/api/library', async (req, res) => {
     const search = (req.query.search || '').trim().toLowerCase();
     const parentType = (req.query.parent_type || '').trim();
     const problemType = (req.query.problem_type || '').trim();
+    const problemCategory = (req.query.problem_category || '').trim();
+    const problemSubtype = (req.query.problem_subtype || '').trim();
     const minScore = parseInt(req.query.min_score || '60') || 60;
 
     // 获取已分析通话的金句
@@ -698,6 +740,8 @@ app.get('/api/library', async (req, res) => {
       const reasons = gs.map(g => g.reason || '');
       const parentTypes = Array.isArray(analysis.parent_type) ? analysis.parent_type
         : (typeof analysis.parent_type === 'string' ? [analysis.parent_type] : []);
+      const problemCategory = analysis.problem_category || '';
+      const problemSubtype = analysis.problem_subtype || '';
       const objectionTypes = (analysis.objection_handling || []).map(o => o.objection_type).filter(Boolean);
       const tags = [
         ...(analysis.tags || []),
@@ -713,6 +757,8 @@ app.get('/api/library', async (req, res) => {
           tags,
           parent_type: parentTypes,
           problem_type: objectionTypes,
+          problem_category: problemCategory,
+          problem_subtype: problemSubtype,
           scene: gs[idx]?.scene || '',
           content: g.text,
           why_good: reasons[idx] || '语言亲切自然，能有效建立信任并推动沟通进展',
@@ -732,6 +778,8 @@ app.get('/api/library', async (req, res) => {
             tags,
             parent_type: parentTypes,
             problem_type: objectionTypes,
+            problem_category: problemCategory,
+            problem_subtype: problemSubtype,
             scene: '综合高分通话',
             content: '该通话综合评分优秀，建议收听原声学习整体沟通节奏',
             why_good: '该顾问在SPIN各维度表现均衡，整体沟通质量高',
@@ -749,6 +797,17 @@ app.get('/api/library', async (req, res) => {
       // PostgreSQL jsonb contains
       customQuery = customQuery.contains('parent_type', JSON.stringify([parentType]));
     }
+    if (problemCategory) {
+      customQuery = customQuery.eq('problem_category', problemCategory);
+    }
+    if (problemSubtype) {
+      const subtypes = problemSubtype.split(',').map(s => s.trim()).filter(Boolean);
+      if (subtypes.length === 1) {
+        customQuery = customQuery.eq('problem_subtype', subtypes[0]);
+      } else if (subtypes.length > 1) {
+        customQuery = customQuery.in('problem_subtype', subtypes);
+      }
+    }
     const { data: customScripts } = await customQuery.order('score', { ascending: false });
 
     (customScripts || []).forEach(s => {
@@ -759,6 +818,8 @@ app.get('/api/library', async (req, res) => {
         tags: s.tags || [],
         parent_type: s.parent_type || [],
         problem_type: s.problem_type || [],
+        problem_category: s.problem_category || '',
+        problem_subtype: s.problem_subtype || '',
         scene: s.scene,
         content: s.content,
         why_good: s.why_good,
@@ -770,9 +831,20 @@ app.get('/api/library', async (req, res) => {
 
     // 排序和搜索过滤
     items.sort((a, b) => b.score - a.score);
-    const filtered = search
+    let filtered = search
       ? items.filter(i => (i.content + i.scene + i.why_good).toLowerCase().includes(search))
       : items;
+
+    // 按异议分类筛选（调用分析产生的项目）
+    if (problemCategory) {
+      filtered = filtered.filter(i => i.problem_category === problemCategory);
+    }
+    if (problemSubtype) {
+      const subtypes = problemSubtype.split(',').map(s => s.trim()).filter(Boolean);
+      if (subtypes.length > 0) {
+        filtered = filtered.filter(i => subtypes.includes(i.problem_subtype));
+      }
+    }
 
     res.json(filtered);
   } catch (e) {
@@ -791,6 +863,8 @@ app.post('/api/library/upload', upload.single('audio'), async (req, res) => {
     const score = parseInt(req.body.score || '80') || 80;
     const parentType = (req.body.parent_type || '').trim();
     const problemType = (req.body.problem_type || '').trim();
+    const problemCategory = (req.body.problem_category || '').trim();
+    const problemSubtype = (req.body.problem_subtype || '').trim();
     const whyGood = (req.body.why_good || '').trim();
 
     // 音频上传到 Supabase Storage
@@ -817,6 +891,8 @@ app.post('/api/library/upload', upload.single('audio'), async (req, res) => {
       score,
       parent_type: parentType ? [parentType] : [],
       problem_type: problemType ? [problemType] : [],
+      problem_category: problemCategory,
+      problem_subtype: problemSubtype,
       tags: [],
       why_good: whyGood || '优质话术，建议多加练习',
       consultant_name: '手动上传',
@@ -1179,6 +1255,7 @@ async function deepseekAnalysis(transcript, consultantName) {
 3. 异议处理分析
 4. 亮点与待改进总结
 5. 黄金话术提炼
+6. 异议分类（两层体系）
 
 返回的 JSON 必须严格符合以下格式：
 {
@@ -1204,6 +1281,14 @@ async function deepseekAnalysis(transcript, consultantName) {
   "tags": ["标签1", "标签2", "标签3"],
   "parent_type": ["理性分析型|价格敏感型|决策拖延型|信任需求型"],
   "problem_types": ["问题类型"],
+  "problem_category": "从以下6大类中选一个最匹配的：价格异议|孩子意愿问题|效果质疑|时间精力问题|决策权问题|信任建立问题",
+  "problem_subtype": "结合所选大类，从对应的细分场景中选一个最精确的：
+    - 价格异议 → 嫌总价高|要求分期|对比竞品价格|要求额外折扣
+    - 孩子意愿问题 → 孩子不愿意学|排斥某学科|注意力不集中|已报满其他班
+    - 效果质疑 → 怀疑提分效果|要求成功案例|担心师资水平|担心进度跟不上
+    - 时间精力问题 → 接送不方便|上课时间冲突|家长没空陪读|担心孩子负担过重
+    - 决策权问题 → 需和伴侣商量|需和孩子商量|要求再考虑几天
+    - 信任建立问题 → 初次接触不信任机构|对线上模式有疑虑|担心退费问题",
   "is_excellent": true/false,
   "excellence_reason": "优秀理由",
   "best_script_moments": [{ "time": "通话阶段", "text": "话术内容", "score": 0-100, "comment": "点评" }],
@@ -1237,6 +1322,8 @@ async function deepseekAnalysis(transcript, consultantName) {
     tags: [],
     parent_type: [],
     problem_types: [],
+    problem_category: '',
+    problem_subtype: '',
     highlight_spans: [],
     best_script_moments: [],
     key_phrases_used: [],
@@ -1326,6 +1413,8 @@ function ruleBasedAnalysis(transcript, consultantName) {
     tags: ['SPIN提问', '需求挖掘', '异议处理'],
     parent_type: coveredCount >= 3 ? ['理性分析型'] : ['价格敏感型'],
     problem_types: ['价格异议'],
+    problem_category: coveredCount >= 3 ? '信任建立问题' : '价格异议',
+    problem_subtype: coveredCount >= 3 ? '初次接触不信任机构' : '嫌总价高',
     is_excellent: isExcellent,
     excellence_reason: isExcellent ? 'SPIN维度覆盖全面，话术自然流畅' : '',
     best_script_moments: [{ time: '通话中段', text: '理解您的顾虑...我们可以先安排试听', score: overall, comment: '共情+方案并行' }]

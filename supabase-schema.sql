@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS custom_scripts (
     score           INTEGER DEFAULT 80,
     parent_type     JSONB DEFAULT '[]'::jsonb,
     problem_type    JSONB DEFAULT '[]'::jsonb,
+    problem_category TEXT DEFAULT '',
+    problem_subtype  TEXT DEFAULT '',
     tags            JSONB DEFAULT '[]'::jsonb,
     why_good        TEXT DEFAULT '',
     consultant_name TEXT DEFAULT '手动上传',

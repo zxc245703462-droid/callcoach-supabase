@@ -631,14 +631,36 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">家长类型</label>
-            <input id="libraryParentTypeInput" type="text" placeholder="价格敏感型" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/20">
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">异议大类</label>
+            <select id="libraryProblemCategoryInput" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-primary-500/20">
+              <option value="">不限</option>
+              <option value="价格异议">价格异议</option>
+              <option value="孩子意愿问题">孩子意愿问题</option>
+              <option value="效果质疑">效果质疑</option>
+              <option value="时间精力问题">时间精力问题</option>
+              <option value="决策权问题">决策权问题</option>
+              <option value="信任建立问题">信任建立问题</option>
+            </select>
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">问题类型</label>
-            <input id="libraryProblemTypeInput" type="text" placeholder="价格异议" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/20">
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">细分场景</label>
+            <input id="libraryProblemSubtypeInput" type="text" placeholder="嫌总价高" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/20">
           </div>
         </div>
+        <div id="libraryUploadMoreFields" class="hidden">
+          <hr class="border-gray-100 dark:border-gray-700 my-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">家长类型（旧字段）</label>
+              <input id="libraryParentTypeInput" type="text" placeholder="价格敏感型" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/20">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">问题类型（旧字段）</label>
+              <input id="libraryProblemTypeInput" type="text" placeholder="价格异议" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/20">
+            </div>
+          </div>
+        </div>
+        <button type="button" onclick="document.getElementById('libraryUploadMoreFields').classList.toggle('hidden')" class="w-full text-center text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 py-1 transition-colors">+ 展开旧字段</button>
         <div>
           <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">为什么好（可选）</label>
           <input id="libraryWhyGoodInput" type="text" placeholder="简述这条话术好的原因" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary-500/20">
@@ -666,25 +688,19 @@
   </div>
 
   <!-- 搜索与筛选 -->
-  <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
+  <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
     <div class="relative flex-1">
       <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
       <input type="text" id="librarySearch" placeholder="搜索话术内容..." oninput="filterLibrary()" class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all">
     </div>
-    <select id="libraryParentType" onchange="filterLibrary()" class="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary-500/20">
-      <option value="">全部家长类型</option>
-      <option value="焦虑型">焦虑型</option>
-      <option value="佛系型">佛系型</option>
-      <option value="鸡娃型">鸡娃型</option>
-      <option value="价格敏感型">价格敏感型</option>
-      <option value="观望型">观望型</option>
-    </select>
-    <select id="libraryProblemType" onchange="filterLibrary()" class="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary-500/20">
-      <option value="">全部问题类型</option>
+    <select id="libraryProblemCategory" onchange="onCategoryChange()" class="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary-500/20">
+      <option value="">全部异议大类</option>
       <option value="价格异议">价格异议</option>
+      <option value="孩子意愿问题">孩子意愿问题</option>
       <option value="效果质疑">效果质疑</option>
-      <option value="时间冲突">时间冲突</option>
-      <option value="竞品对比">竞品对比</option>
+      <option value="时间精力问题">时间精力问题</option>
+      <option value="决策权问题">决策权问题</option>
+      <option value="信任建立问题">信任建立问题</option>
     </select>
     <select id="libraryMinScore" onchange="filterLibrary()" class="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary-500/20">
       <option value="80">得分: 80+</option>
@@ -692,6 +708,40 @@
       <option value="90">得分: 90+</option>
       <option value="70">得分: 70+</option>
     </select>
+  </div>
+
+  <!-- 细分场景标签筛选（选中大类后显示） -->
+  <div id="librarySubtypeChips" class="flex flex-wrap gap-2 mb-3 hidden"></div>
+
+  <!-- 更多筛选（可折叠） -->
+  <div class="mb-4">
+    <button onclick="toggleMoreFilters()" class="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+      <i data-lucide="chevron-down" id="moreFiltersIcon" class="w-3.5 h-3.5"></i>
+      <span>更多筛选</span>
+    </button>
+    <div id="moreFiltersPanel" class="hidden mt-3 p-4 bg-gray-50 dark:bg-gray-700/20 rounded-xl space-y-3">
+      <div class="flex items-center gap-2">
+        <label class="text-xs text-gray-500 whitespace-nowrap">家长类型：</label>
+        <select id="libraryParentType" onchange="filterLibrary()" class="flex-1 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary-500/20">
+          <option value="">全部家长类型</option>
+          <option value="焦虑型">焦虑型</option>
+          <option value="佛系型">佛系型</option>
+          <option value="鸡娃型">鸡娃型</option>
+          <option value="价格敏感型">价格敏感型</option>
+          <option value="观望型">观望型</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-xs text-gray-500 whitespace-nowrap">问题类型：</label>
+        <select id="libraryProblemType" onchange="filterLibrary()" class="flex-1 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary-500/20">
+          <option value="">全部问题类型</option>
+          <option value="价格异议">价格异议</option>
+          <option value="效果质疑">效果质疑</option>
+          <option value="时间冲突">时间冲突</option>
+          <option value="竞品对比">竞品对比</option>
+        </select>
+      </div>
+    </div>
   </div>
 
   <div id="libraryContent" class="space-y-4">
@@ -2431,6 +2481,65 @@ async function deleteReport(reportId) {
 
 // ==================== LIBRARY ====================
 let allLibraryItems = [];
+let selectedSubtypes = [];
+
+// 异议大类 → 细分场景映射
+const CATEGORY_SUBTYPES = {
+  '价格异议': ['嫌总价高', '要求分期', '对比竞品价格', '要求额外折扣'],
+  '孩子意愿问题': ['孩子不愿意学', '排斥某学科', '注意力不集中', '已报满其他班'],
+  '效果质疑': ['怀疑提分效果', '要求成功案例', '担心师资水平', '担心进度跟不上'],
+  '时间精力问题': ['接送不方便', '上课时间冲突', '家长没空陪读', '担心孩子负担过重'],
+  '决策权问题': ['需和伴侣商量', '需和孩子商量', '要求再考虑几天'],
+  '信任建立问题': ['初次接触不信任机构', '对线上模式有疑虑', '担心退费问题']
+};
+
+function onCategoryChange() {
+  const category = document.getElementById('libraryProblemCategory')?.value || '';
+  selectedSubtypes = [];
+  renderSubtypeChips(category);
+  filterLibrary();
+}
+
+function renderSubtypeChips(category) {
+  const container = document.getElementById('librarySubtypeChips');
+  if (!container) return;
+  const subtypes = CATEGORY_SUBTYPES[category] || [];
+  if (!category || subtypes.length === 0) {
+    container.classList.add('hidden');
+    container.innerHTML = '';
+    return;
+  }
+  container.classList.remove('hidden');
+  container.innerHTML = subtypes.map(s => {
+    const active = selectedSubtypes.includes(s);
+    return `<button onclick="toggleSubtype('${escapeHtml(s).replace(/'/g, "\\'")}')" class="px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+      active
+        ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 border-primary-300 dark:border-primary-700'
+        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:border-primary-300 dark:hover:border-primary-600'
+    }">${escapeHtml(s)}</button>`;
+  }).join('');
+}
+
+function toggleSubtype(subtype) {
+  const idx = selectedSubtypes.indexOf(subtype);
+  if (idx >= 0) {
+    selectedSubtypes.splice(idx, 1);
+  } else {
+    selectedSubtypes.push(subtype);
+  }
+  const category = document.getElementById('libraryProblemCategory')?.value || '';
+  renderSubtypeChips(category);
+  filterLibrary();
+}
+
+function toggleMoreFilters() {
+  const panel = document.getElementById('moreFiltersPanel');
+  const icon = document.getElementById('moreFiltersIcon');
+  if (!panel || !icon) return;
+  const hidden = panel.classList.toggle('hidden');
+  // 旋转图标
+  icon.style.transform = hidden ? 'rotate(0deg)' : 'rotate(180deg)';
+}
 let libraryRecommendTarget = ''; // 当前AI推荐的目标顾问
 
 async function loadLibrary() {
@@ -2438,12 +2547,15 @@ async function loadLibrary() {
     const search = document.getElementById('librarySearch')?.value || '';
     const parentType = document.getElementById('libraryParentType')?.value || '';
     const problemType = document.getElementById('libraryProblemType')?.value || '';
+    const problemCategory = document.getElementById('libraryProblemCategory')?.value || '';
     const minScore = document.getElementById('libraryMinScore')?.value || '80';
 
     const params = new URLSearchParams();
     if (search) params.set('search', search);
     if (parentType) params.set('parent_type', parentType);
     if (problemType) params.set('problem_type', problemType);
+    if (problemCategory) params.set('problem_category', problemCategory);
+    if (selectedSubtypes.length > 0) params.set('problem_subtype', selectedSubtypes.join(','));
     if (minScore) params.set('min_score', minScore);
 
     const items = await api('/api/library?' + params.toString()).catch(() => []);
@@ -2525,8 +2637,9 @@ function renderLibrary(items) {
 
   return items.map((item, idx) => {
     const sc = getScoreColor(item.score || 0);
+    const problemCategory = item.problem_category || '';
+    const problemSubtype = item.problem_subtype || '';
     const parentTypes = item.parent_type || [];
-    const problemTypes = item.problem_type || [];
     const scriptId = item.script_id || ('script_' + idx);
     const audioId = 'libraryAudio_' + (audioCounter++);
     const playerId = 'audioPlayer_' + audioId;
@@ -2542,8 +2655,8 @@ function renderLibrary(items) {
         <!-- 顶部：星星 + 标签行 -->
         <div class="flex items-center gap-2 flex-wrap pr-7">
           <i data-lucide="star" class="w-4 h-4 fill-yellow-400 text-yellow-400 flex-shrink-0"></i>
-          ${parentTypes.map((t, i) => `<span class="px-2.5 py-1 rounded-lg text-xs font-medium ${tagColors[i % tagColors.length]}">${escapeHtml(t)}</span>`).join('')}
-          ${problemTypes.map((t, i) => `<span class="px-2.5 py-1 rounded-lg text-xs font-medium ${tagColors[(parentTypes.length + i) % tagColors.length]}">${escapeHtml(t)}</span>`).join('')}
+          ${problemCategory ? `<span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800">${escapeHtml(problemCategory)}</span>` : ''}
+          ${problemSubtype ? `<span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">${escapeHtml(problemSubtype)}</span>` : ''}
           ${(item.consultant_name) ? `<span class="text-xs text-gray-400 ml-auto">${escapeHtml(item.consultant_name)}${item.call_date ? ' · ' + escapeHtml(item.call_date) : ''}</span>` : ''}
         </div>
 
@@ -2588,6 +2701,9 @@ function renderLibrary(items) {
         <div id="${playerId}" class="hidden mt-2 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl">
           <audio id="${audioId}" controls class="w-full h-8" preload="none"></audio>
         </div>
+
+        <!-- 家长类型（右下角小字） -->
+        ${parentTypes.length > 0 ? `<div class="text-right mt-1"><span class="text-[10px] text-gray-400 dark:text-gray-500">${parentTypes.map(t => escapeHtml(t)).join(' · ')}</span></div>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -2673,6 +2789,9 @@ function showLibraryUpload() {
   document.getElementById('libraryScoreInput').value = '80';
   document.getElementById('libraryParentTypeInput').value = '';
   document.getElementById('libraryProblemTypeInput').value = '';
+  document.getElementById('libraryProblemCategoryInput').value = '';
+  document.getElementById('libraryProblemSubtypeInput').value = '';
+  document.getElementById('libraryUploadMoreFields').classList.add('hidden');
   document.getElementById('libraryWhyGoodInput').value = '';
   document.getElementById('libraryAudioLabel').textContent = '选择或拖拽音频文件（支持 mp3/wav/m4a）';
   document.getElementById('libraryTxtLabel').textContent = '上传txt文件（自动提取文本）';
@@ -2717,6 +2836,8 @@ async function submitLibraryUpload() {
   const score = parseInt(document.getElementById('libraryScoreInput').value) || 80;
   const parentType = document.getElementById('libraryParentTypeInput').value.trim();
   const problemType = document.getElementById('libraryProblemTypeInput').value.trim();
+  const problemCategory = document.getElementById('libraryProblemCategoryInput')?.value || '';
+  const problemSubtype = document.getElementById('libraryProblemSubtypeInput')?.value.trim() || '';
   const whyGood = document.getElementById('libraryWhyGoodInput').value.trim();
 
   const formData = new FormData();
@@ -2725,6 +2846,8 @@ async function submitLibraryUpload() {
   formData.append('score', score.toString());
   formData.append('parent_type', parentType);
   formData.append('problem_type', problemType);
+  formData.append('problem_category', problemCategory);
+  formData.append('problem_subtype', problemSubtype);
   formData.append('why_good', whyGood);
   if (libraryAudioBlob) {
     formData.append('audio', libraryAudioBlob, libraryAudioFileName);
