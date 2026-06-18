@@ -1,0 +1,31 @@
+# ============================================================
+# Render Blueprint — 一键部署 CallCoach 后端
+# 在 Render Dashboard → Blueprint 连接 Git 仓库即可
+# ============================================================
+
+services:
+  - type: web
+    name: callcoach-api
+    env: node
+    region: singapore         # 新加坡节点，离中国近
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/status
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: DEEPSEEK_BASE_URL
+        value: https://api.deepseek.com
+      - key: LLM_MODEL
+        value: deepseek-chat
+      - key: MIN_CALLS_INITIAL
+        value: "3"
+      - key: MIN_CALLS_FULL
+        value: "5"
+      - key: NODE_VERSION
+        value: "20.x"
