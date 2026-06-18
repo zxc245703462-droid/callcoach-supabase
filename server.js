@@ -18,8 +18,11 @@ const PORT = process.env.PORT || 3000;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
-const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
-const LLM_MODEL = process.env.LLM_MODEL || 'deepseek-chat';
+const IS_ARK = DEEPSEEK_API_KEY.startsWith('ark-');
+const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL
+  || (IS_ARK ? 'https://ark.cn-beijing.volces.com/api/v3' : 'https://api.deepseek.com');
+const LLM_MODEL = process.env.LLM_MODEL
+  || (IS_ARK ? 'deepseek-v3-250324' : 'deepseek-chat');
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error('❌ 缺少 SUPABASE_URL 或 SUPABASE_KEY 环境变量');
@@ -1096,7 +1099,7 @@ app.post('/api/run-pipeline', async (req, res) => {
 app.get('/api/config', async (req, res) => {
   res.json({
     backend: 'supabase',
-    llm_backend: DEEPSEEK_API_KEY ? 'deepseek' : 'rule_based',
+    llm_backend: DEEPSEEK_API_KEY ? (IS_ARK ? 'ark_deepseek' : 'deepseek') : 'rule_based',
     llm_base_url: DEEPSEEK_BASE_URL,
     llm_model: LLM_MODEL
   });
@@ -1106,7 +1109,9 @@ app.get('/api/config', async (req, res) => {
 
 /** 调用 DeepSeek Chat API */
 async function callDeepSeek(systemPrompt, userMessage, maxTokens = 4096) {
-  const url = `${DEEPSEEK_BASE_URL}/v1/chat/completions`;
+  const url = IS_ARK
+    ? `${DEEPSEEK_BASE_URL}/chat/completions`
+    : `${DEEPSEEK_BASE_URL}/v1/chat/completions`;
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -1366,7 +1371,7 @@ function jsonToText(obj) {
 app.listen(PORT, () => {
   console.log(`🚀 CallCoach Server v2 running on http://localhost:${PORT}`);
   console.log(`   Backend: Supabase (${SUPABASE_URL})`);
-  console.log(`   LLM: ${DEEPSEEK_API_KEY ? `DeepSeek (${LLM_MODEL} @ ${DEEPSEEK_BASE_URL})` : 'Rule-Based（未配置 DEEPSEEK_API_KEY）'}`);
+  console.log(`   LLM: ${DEEPSEEK_API_KEY ? `${IS_ARK ? 'Ark(DeepSeek)' : 'DeepSeek'} (${LLM_MODEL} @ ${DEEPSEEK_BASE_URL})` : 'Rule-Based（未配置 DEEPSEEK_API_KEY）'}`);
   console.log(`   Storage: Supabase Storage`);
 });
 
