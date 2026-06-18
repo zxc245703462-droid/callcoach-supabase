@@ -1,0 +1,43 @@
+{
+  "big_groups": [
+    {
+      "id": "bg_001",
+      "name": "销售一组",
+      "leader_name": "张经理",
+      "small_groups": [
+        {
+          "id": "sg_001",
+          "name": "上午班团队",
+          "leader_name": "李组长",
+          "parent_big_group_id": "bg_001"
+        },
+        {
+          "id": "sg_002",
+          "name": "下午班团队",
+          "leader_name": "王组长",
+          "parent_big_group_id": "bg_001"
+        }
+      ]
+    },
+    {
+      "id": "bg_002",
+      "name": "销售二组",
+      "leader_name": "陈经理",
+      "small_groups": [
+        {
+          "id": "sg_003",
+          "name": "A队",
+          "leader_name": "赵组长",
+          "parent_big_group_id": "bg_002"
+        },
+        {
+          "id": "sg_004",
+          "name": "B队",
+          "leader_name": "周组长",
+          "parent_big_group_id": "bg_002"
+        }
+      ]
+    }
+  ],
+  "consultant_assignments": {}
+}

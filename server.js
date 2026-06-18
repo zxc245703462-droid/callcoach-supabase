@@ -41,7 +41,7 @@ async function runMigrations() {
         'apikey': SUPABASE_KEY,
         'Authorization': `Bearer ${SUPABASE_KEY}`
       },
-      body: JSON.stringify({ sql: `ALTER TABLE IF EXISTS custom_scripts ADD COLUMN IF NOT EXISTS problem_category TEXT DEFAULT ''; ALTER TABLE IF EXISTS custom_scripts ADD COLUMN IF NOT EXISTS problem_subtype TEXT DEFAULT '';` })
+      body: JSON.stringify({ sql: `ALTER TABLE IF EXISTS custom_scripts ADD COLUMN IF NOT EXISTS problem_category TEXT DEFAULT ''; ALTER TABLE IF EXISTS custom_scripts ADD COLUMN IF NOT EXISTS problem_subtype TEXT DEFAULT ''; ALTER TABLE IF EXISTS consultants ADD COLUMN IF NOT EXISTS small_group_id TEXT DEFAULT ''; ALTER TABLE IF EXISTS calls ADD COLUMN IF NOT EXISTS small_group_id TEXT DEFAULT '';` })
     });
     if (resp.ok) {
       console.log('[Migration] problem_category / problem_subtype columns ready');
@@ -55,7 +55,7 @@ async function runMigrations() {
           'apikey': SUPABASE_KEY,
           'Authorization': `Bearer ${SUPABASE_KEY}`
         },
-        body: JSON.stringify({ query: `ALTER TABLE IF EXISTS custom_scripts ADD COLUMN IF NOT EXISTS problem_category TEXT DEFAULT ''; ALTER TABLE IF EXISTS custom_scripts ADD COLUMN IF NOT EXISTS problem_subtype TEXT DEFAULT '';` })
+        body: JSON.stringify({ query: `ALTER TABLE IF EXISTS custom_scripts ADD COLUMN IF NOT EXISTS problem_category TEXT DEFAULT ''; ALTER TABLE IF EXISTS custom_scripts ADD COLUMN IF NOT EXISTS problem_subtype TEXT DEFAULT ''; ALTER TABLE IF EXISTS consultants ADD COLUMN IF NOT EXISTS small_group_id TEXT DEFAULT ''; ALTER TABLE IF EXISTS calls ADD COLUMN IF NOT EXISTS small_group_id TEXT DEFAULT '';` })
       });
       if (sqlResp.ok) {
         console.log('[Migration] columns added via SQL endpoint');
@@ -399,6 +399,159 @@ app.delete('/api/consultant/:consultant_id', async (req, res) => {
   }
 });
 
+// ==================== 组织视图 ====================
+const ORG_TABLES_PATH = path.join(publicDir, 'org_tables.json');
+
+/** 读取组织配置 */
+function readOrgConfig() {
+  try {
+    if (fs.existsSync(ORG_TABLES_PATH)) {
+      return JSON.parse(fs.readFileSync(ORG_TABLES_PATH, 'utf-8'));
+    }
+  } catch (e) {
+    console.error('Failed to read org config:', e.message);
+  }
+  return { big_groups: [], consultant_assignments: {} };
+}
+
+/** 保存组织配置 */
+function writeOrgConfig(config) {
+  fs.writeFileSync(ORG_TABLES_PATH, JSON.stringify(config, null, 2), 'utf-8');
+}
+
+// ---- 组织树（含聚合数据）----
+app.get('/api/org-tree', async (req, res) => {
+  try {
+    const config = readOrgConfig();
+
+    // 1) 加载所有通话聚合数据
+    const { data: calls } = await supabase.from('calls')
+      .select('call_id, consultant_id, consultant_name, analysis_json, call_date')
+      .is('deleted_at', null);
+
+    // 2) 按 consultant_id 聚合
+    const consultantStats = {};
+    (calls || []).forEach(c => {
+      if (!c.consultant_id) return;
+      if (!consultantStats[c.consultant_id]) {
+        consultantStats[c.consultant_id] = {
+          consultant_id: c.consultant_id,
+          consultant_name: c.consultant_name || '未知顾问',
+          total_calls: 0,
+          total_score: 0,
+          calls: []
+        };
+      }
+      const a = safeJsonParse(c.analysis_json) || {};
+      const score = (a.script_score && a.script_score.overall) || 0;
+      consultantStats[c.consultant_id].total_calls++;
+      consultantStats[c.consultant_id].total_score += score;
+      consultantStats[c.consultant_id].calls.push({
+        call_id: c.call_id || '-',
+        score,
+        call_date: c.call_date || '',
+        consultant_name: c.consultant_name || '未知顾问'
+      });
+    });
+
+    // 3) 构建树
+    const assignments = config.consultant_assignments || {};
+    const bigGroups = (config.big_groups || []).map(bg => {
+      let bgTotalCalls = 0, bgTotalScore = 0;
+
+      const smallGroups = (bg.small_groups || []).map(sg => {
+        let sgTotalCalls = 0, sgTotalScore = 0;
+        const consultants = [];
+
+        // 找到归属此小组的顾问
+        Object.entries(assignments).forEach(([consultantId, sgId]) => {
+          if (sgId !== sg.id) return;
+          const stats = consultantStats[consultantId];
+          if (stats) {
+            consultants.push({
+              id: consultantId,
+              name: stats.consultant_name,
+              total_calls: stats.total_calls,
+              avg_score: stats.total_calls > 0 ? Math.round((stats.total_score / stats.total_calls) * 10) / 10 : 0,
+              total_score: Math.round(stats.total_score * 10) / 10,
+              calls: stats.calls
+            });
+            sgTotalCalls += stats.total_calls;
+            sgTotalScore += stats.total_score;
+          }
+        });
+
+        bgTotalCalls += sgTotalCalls;
+        bgTotalScore += sgTotalScore;
+
+        return {
+          id: sg.id,
+          name: sg.name,
+          leader_name: sg.leader_name || '',
+          total_calls: sgTotalCalls,
+          avg_score: sgTotalCalls > 0 ? Math.round((sgTotalScore / sgTotalCalls) * 10) / 10 : 0,
+          consultants
+        };
+      });
+
+      return {
+        id: bg.id,
+        name: bg.name,
+        leader_name: bg.leader_name || '',
+        total_calls: bgTotalCalls,
+        avg_score: bgTotalCalls > 0 ? Math.round((bgTotalScore / bgTotalCalls) * 10) / 10 : 0,
+        small_groups: smallGroups
+      };
+    });
+
+    res.json({ big_groups: bigGroups });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ---- 获取组织配置 ----
+app.get('/api/org-config', async (req, res) => {
+  try {
+    const config = readOrgConfig();
+    // 额外返回可用的顾问列表供前端下拉选择
+    const { data: consultants } = await supabase.from('calls')
+      .select('consultant_id, consultant_name').is('deleted_at', null);
+    const consultantMap = {};
+    (consultants || []).forEach(c => {
+      if (c.consultant_id && !consultantMap[c.consultant_id]) {
+        consultantMap[c.consultant_id] = c.consultant_name || '未知顾问';
+      }
+    });
+    res.json({
+      ...config,
+      available_consultants: Object.entries(consultantMap).map(([id, name]) => ({ id, name }))
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ---- 保存组织配置 ----
+app.put('/api/org-config', async (req, res) => {
+  try {
+    const newConfig = req.body;
+    if (!newConfig || typeof newConfig !== 'object') {
+      return res.status(400).json({ error: 'Invalid config body' });
+    }
+    const current = readOrgConfig();
+    // 仅更新配置结构字段，保留已存在的consultant_assignments
+    const merged = {
+      big_groups: newConfig.big_groups || current.big_groups || [],
+      consultant_assignments: newConfig.consultant_assignments || current.consultant_assignments || {}
+    };
+    writeOrgConfig(merged);
+    res.json({ success: true, message: '组织配置已保存' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ---- 统计数据 ----
 app.get('/api/stats', async (req, res) => {
   try {
@@ -718,7 +871,9 @@ app.get('/api/library', async (req, res) => {
     const problemType = (req.query.problem_type || '').trim();
     const problemCategory = (req.query.problem_category || '').trim();
     const problemSubtype = (req.query.problem_subtype || '').trim();
-    const minScore = parseInt(req.query.min_score || '60') || 60;
+    let minScore = parseInt(req.query.min_score || '80') || 80;
+    // 硬性下限：话术库只展示 80 分以上的优质内容
+    if (minScore < 80) minScore = 80;
 
     // 获取已分析通话的金句
     const { data: records } = await supabase.from('calls')
@@ -768,8 +923,8 @@ app.get('/api/library', async (req, res) => {
         });
       });
 
-      // 无金句但高分 → 兜底
-      if (gsTexts.length === 0 && overall >= 70) {
+      // 无金句但高分 → 兜底（仅 >= 80 进入话术库）
+      if (gsTexts.length === 0 && overall >= 80) {
         const sid = r.call_id;
         if (!blackSet.has(sid)) {
           items.push({
@@ -853,6 +1008,136 @@ app.get('/api/library', async (req, res) => {
   }
 });
 
+// ---- 待提升案例（60-79 分，仅供 AI 推荐参考，不入话术库主流） ----
+app.get('/api/library/improvement-cases', async (req, res) => {
+  try {
+    const search = (req.query.search || '').trim().toLowerCase();
+    const problemCategory = (req.query.problem_category || '').trim();
+    const problemSubtype = (req.query.problem_subtype || '').trim();
+    const parentType = (req.query.parent_type || '').trim();
+    const minScore = Math.max(parseInt(req.query.min_score || '60') || 60, 60);
+    const maxScore = Math.min(parseInt(req.query.max_score || '79') || 79, 79);
+
+    // 从已分析通话中提取 60-79 分的项目
+    const { data: records } = await supabase.from('calls')
+      .select('*').not('analysis_json', 'is', null).is('deleted_at', null);
+
+    const { data: blacklist } = await supabase.from('deleted_script_ids').select('script_id');
+    const blackSet = new Set((blacklist || []).map(b => b.script_id));
+
+    const items = [];
+    (records || []).forEach(r => {
+      const analysis = getAnalysisData(r);
+      const ss = analysis.script_score || {};
+      const overall = ss.overall || 0;
+      // 仅收录 60-79 分区间
+      if (overall < minScore || overall > maxScore) return;
+
+      const problemCat = analysis.problem_category || '';
+      const problemSub = analysis.problem_subtype || '';
+      if (problemCategory && problemCat !== problemCategory) return;
+      if (problemSubtype) {
+        const subtypes = problemSubtype.split(',').map(s => s.trim()).filter(Boolean);
+        if (subtypes.length > 0 && !subtypes.includes(problemSub)) return;
+      }
+      const parentTypes = Array.isArray(analysis.parent_type) ? analysis.parent_type
+        : (typeof analysis.parent_type === 'string' ? [analysis.parent_type] : []);
+      if (parentType && !parentTypes.includes(parentType)) return;
+
+      const gs = analysis.golden_scripts || [];
+      const gsTexts = gs.filter(g => g.text);
+      const reasons = gs.map(g => g.reason || '');
+      const tags = [
+        ...(analysis.tags || []),
+        ...(analysis.spin_analysis ? Object.entries(analysis.spin_analysis).filter(([,v]) => v?.covered).map(([k]) => k) : [])
+      ].slice(0, 4);
+
+      if (gsTexts.length > 0) {
+        gsTexts.forEach((g, idx) => {
+          const sid = `${r.call_id}_gs${idx}_imp`;
+          if (blackSet.has(sid)) return;
+          items.push({
+            script_id: sid,
+            score: overall,
+            tags,
+            parent_type: parentTypes,
+            problem_type: (analysis.objection_handling || []).map(o => o.objection_type).filter(Boolean),
+            problem_category: problemCat,
+            problem_subtype: problemSub,
+            scene: gs[idx]?.scene || '',
+            content: g.text,
+            why_good: reasons[idx] || '需要进一步提升表达清晰度和说服力',
+            consultant_name: r.consultant_name,
+            call_date: r.call_date,
+            audio_url: r.audio_url,
+            is_improvement: true
+          });
+        });
+      }
+
+      // 无金句兜底
+      if (gsTexts.length === 0) {
+        const sid = r.call_id + '_imp';
+        if (!blackSet.has(sid)) {
+          items.push({
+            script_id: sid,
+            score: overall,
+            tags,
+            parent_type: parentTypes,
+            problem_type: (analysis.objection_handling || []).map(o => o.objection_type).filter(Boolean),
+            problem_category: problemCat,
+            problem_subtype: problemSub,
+            scene: '综合待提升通话',
+            content: '该通话整体评分偏低，建议收听原声分析改进空间',
+            why_good: '当前话术仍有提升空间，建议重点练习异议处理和需求挖掘',
+            consultant_name: r.consultant_name,
+            call_date: r.call_date,
+            audio_url: r.audio_url,
+            is_improvement: true
+          });
+        }
+      }
+    });
+
+    // 合并 custom_scripts 中 60-79 分的话术
+    let customQuery = supabase.from('custom_scripts').select('*').gte('score', minScore).lte('score', maxScore);
+    if (parentType) customQuery = customQuery.contains('parent_type', JSON.stringify([parentType]));
+    if (problemCategory) customQuery = customQuery.eq('problem_category', problemCategory);
+    if (problemSubtype) {
+      const subtypes = problemSubtype.split(',').map(s => s.trim()).filter(Boolean);
+      if (subtypes.length === 1) customQuery = customQuery.eq('problem_subtype', subtypes[0]);
+      else if (subtypes.length > 1) customQuery = customQuery.in('problem_subtype', subtypes);
+    }
+    const { data: customScripts } = await customQuery.order('score', { ascending: false });
+
+    (customScripts || []).forEach(s => {
+      if (search && !`${s.content} ${s.scene} ${s.why_good}`.toLowerCase().includes(search)) return;
+      items.push({
+        script_id: s.script_id + '_imp',
+        score: s.score,
+        tags: s.tags || [],
+        parent_type: s.parent_type || [],
+        problem_type: s.problem_type || [],
+        problem_category: s.problem_category || '',
+        problem_subtype: s.problem_subtype || '',
+        scene: s.scene,
+        content: s.content,
+        why_good: s.why_good,
+        consultant_name: s.consultant_name,
+        call_date: s.call_date,
+        audio_url: s.audio_url,
+        is_improvement: true
+      });
+    });
+
+    items.sort((a, b) => b.score - a.score);
+    res.json(items);
+  } catch (e) {
+    console.error('Improvement cases error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ---- 话术上传 ----
 app.post('/api/library/upload', upload.single('audio'), async (req, res) => {
   try {
@@ -861,6 +1146,10 @@ app.post('/api/library/upload', upload.single('audio'), async (req, res) => {
 
     const scene = (req.body.scene || '').trim();
     const score = parseInt(req.body.score || '80') || 80;
+    // 硬性门槛：低于 80 分的话术不允许进入话术库
+    if (score < 80) {
+      return res.status(400).json({ success: false, error: '话术评分必须 ≥ 80 分才能收录到话术库，请提升话术质量后重新上传' });
+    }
     const parentType = (req.body.parent_type || '').trim();
     const problemType = (req.body.problem_type || '').trim();
     const problemCategory = (req.body.problem_category || '').trim();

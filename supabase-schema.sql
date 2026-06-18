@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS consultants (
     diagnosis_json  JSONB,
     coaching_tasks  JSONB,
     processing_status TEXT NOT NULL DEFAULT 'PENDING_DIAGNOSE',
+    small_group_id  TEXT DEFAULT '',
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at    TIMESTAMPTZ
