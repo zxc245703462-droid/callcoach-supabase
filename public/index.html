@@ -1985,16 +1985,17 @@ async function loadConsultants() {
       myCalls.forEach(cl => {
         callCount++;
         const ds = cl.dimension_scores || {};
-        if (ds.opening != null) dimAvgs.opening += ds.opening;
-        if (ds.needs_discovery != null) dimAvgs.needs_discovery += ds.needs_discovery;
-        if (ds.course_presentation != null) dimAvgs.course_presentation += ds.course_presentation;
-        if (ds.objection_handling != null) dimAvgs.objection_handling += ds.objection_handling;
-        if (ds.closing != null) dimAvgs.closing += ds.closing;
-        // SPIN覆盖 = 各SPIN维度quality_score的均值 * 10
+        // dimension_scores 是 0-10 制，雷达图 max=100，需 ×10
+        if (ds.opening != null) dimAvgs.opening += ds.opening * 10;
+        if (ds.needs_discovery != null) dimAvgs.needs_discovery += ds.needs_discovery * 10;
+        if (ds.course_presentation != null) dimAvgs.course_presentation += ds.course_presentation * 10;
+        if (ds.objection_handling != null) dimAvgs.objection_handling += ds.objection_handling * 10;
+        if (ds.closing != null) dimAvgs.closing += ds.closing * 10;
+        // SPIN覆盖 = 各SPIN维度quality_score的均值（quality_score 已是 0-100）
         const sd = cl.spin_detail || {};
         const spinQs = ['situation','problem','implication','need_payoff']
           .map(k => (sd[k] && sd[k].quality_score) || 0);
-        dimAvgs.spin_covg += (spinQs.reduce((a,b)=>a+b,0) / Math.max(1, spinQs.filter(v=>v>0).length)) * 10 || 0;
+        dimAvgs.spin_covg += spinQs.reduce((a,b)=>a+b,0) / Math.max(1, spinQs.filter(v=>v>0).length) || 0;
       });
       if (callCount > 0) {
         Object.keys(dimAvgs).forEach(k => { dimAvgs[k] = Math.round(dimAvgs[k] / callCount); });
