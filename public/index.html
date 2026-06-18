@@ -1110,7 +1110,7 @@ async function startAnalysis() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          files: (uploadData.files || []).map(f => typeof f === 'string' ? f : (f.path || f.saved_name || '')),
+          files: (uploadData.files || []).map(f => typeof f === 'string' ? f : (f.call_id || '')),
           consultant_id: uploadData.consultant_id || task.consultantName,
           consultant_name: task.consultantName,
           llm_backend: task.llmBackend
