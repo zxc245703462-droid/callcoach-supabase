@@ -264,6 +264,13 @@ app.get('/api/calls/:call_id', async (req, res) => {
       .replace(/1[3-9]\d{9}/g, '[手机号]')
       .replace(/\d{6}(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]/g, '[身份证号]');
 
+    // 确保 spark_report 递归解析（可能嵌套 JSON 字符串）
+    const spark = safeJsonParse(analysis.spark_report) || {};
+    // 确保 strengths/areas/priorities 是数组
+    ['strengths', 'areas', 'revision_priority'].forEach(k => {
+      if (spark[k] && !Array.isArray(spark[k])) spark[k] = [spark[k]];
+    });
+
     res.json({
       record_id: data.id,
       call_id: data.call_id,
@@ -276,7 +283,7 @@ app.get('/api/calls/:call_id', async (req, res) => {
       segments: safeJsonParse(data.key_segments) || [],
       analysis,
       highlight_spans: analysis.highlight_spans || [],
-      spark_report: analysis.spark_report || {},
+      spark_report: spark,
       golden_scripts: analysis.golden_scripts || [],
       tags: analysis.tags || []
     });
@@ -1125,10 +1132,10 @@ function ruleBasedAnalysis(transcript, consultantName) {
     missed_opportunities: weaknesses.slice(0, 2).map(w => `在${w.area}环节可以加强 (${w.score}分)`),
     highlight_spans: [],
     spark_report: {
-      strengths: `SPIN四维度覆盖${coveredCount}/4，${strengths.map(s => s.area).join('、')}表现突出`,
-      potential: `提升${weaknesses.map(w => w.area).join('、')}可有效提高整体评分`,
-      areas: weaknesses.map(w => `${w.area}: 当前${w.score}分，目标≥70分`).join('；'),
-      revision_priority: weaknesses.length > 0 ? weaknesses[0].area : '',
+      strengths: strengths.length > 0 ? [`SPIN四维度覆盖${coveredCount}/4，${strengths.map(s => s.area).join('、')}表现突出`] : [],
+      potential: weaknesses.length > 0 ? `提升${weaknesses.map(w => w.area).join('、')}可有效提高整体评分` : '',
+      areas: weaknesses.length > 0 ? weaknesses.map(w => `${w.area}: 当前${w.score}分，目标≥70分`) : [],
+      revision_priority: weaknesses.length > 0 ? [weaknesses[0].area] : [],
       keep_going: '坚持练习，持续提升沟通质量！'
     },
     golden_scripts: [

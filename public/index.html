@@ -1640,10 +1640,10 @@ async function showCallDetail(callId) {
     // ---- 1. 亮点总结（解析 JSON 用 ✅⚠️） ----
     let sparkHtml = '';
     if (spark && typeof spark === 'object') {
-      const strengths = spark.strengths || [];
+      const strengths = Array.isArray(spark.strengths) ? spark.strengths : (spark.strengths ? [spark.strengths] : []);
       const potential = spark.potential || '';
-      const areas = spark.areas || [];
-      const priorities = spark.revision_priority || [];
+      const areas = Array.isArray(spark.areas) ? spark.areas : (spark.areas ? [spark.areas] : []);
+      const priorities = Array.isArray(spark.revision_priority) ? spark.revision_priority : (spark.revision_priority ? [spark.revision_priority] : []);
       const keepGoing = spark.keep_going || '';
 
       sparkHtml = '<div class="space-y-4">';
