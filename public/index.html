@@ -158,8 +158,9 @@
           <p class="text-xs text-gray-500">admin@callcoach.com</p>
         </div>
         <div class="py-1">
-          <a href="#" class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50"><i data-lucide="settings" class="w-4 h-4 text-gray-400"></i> 系统设置</a>
-          <a href="#" class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50"><i data-lucide="help-circle" class="w-4 h-4 text-gray-400"></i> 帮助中心</a>
+          <button onclick="userMenu.classList.add('hidden'); showPage('org-config')" class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 text-left"><i data-lucide="git-branch" class="w-4 h-4 text-gray-400"></i> 分组配置</button>
+          <button onclick="userMenu.classList.add('hidden')" class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 text-left"><i data-lucide="settings" class="w-4 h-4 text-gray-400"></i> 系统设置</button>
+          <button onclick="userMenu.classList.add('hidden')" class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 text-left"><i data-lucide="help-circle" class="w-4 h-4 text-gray-400"></i> 帮助中心</button>
         </div>
       </div>
     </div>
@@ -508,13 +509,20 @@
       <h1 class="text-2xl font-bold text-gray-900 dark:text-white">顾问管理</h1>
       <p class="text-sm text-gray-500 mt-1">查看顾问详情、诊断报告和教练计划</p>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 flex-wrap">
       <!-- 搜索 -->
       <div class="relative">
         <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
         <input type="text" id="consultantSearch" placeholder="搜索顾问姓名或ID..." oninput="filterConsultants()"
           class="pl-9 pr-4 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none w-56 text-gray-700 dark:text-gray-300 placeholder-gray-400 transition-all">
       </div>
+      <!-- 分组筛选 -->
+      <select id="consultantBigGroupFilter" onchange="onBigGroupFilterChange()" class="px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-gray-700 dark:text-gray-300 transition-all">
+        <option value="">全部大组</option>
+      </select>
+      <select id="consultantSmallGroupFilter" onchange="filterConsultants()" class="px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-gray-700 dark:text-gray-300 transition-all">
+        <option value="">全部小组</option>
+      </select>
       <!-- 添加顾问 -->
       <button onclick="addConsultant()" class="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-primary-500/20">
         <i data-lucide="user-plus" class="w-4 h-4"></i> 添加顾问
@@ -861,9 +869,6 @@
       <p class="text-sm text-gray-500 mt-1">按组织树逐层下钻查看通话数据</p>
     </div>
     <div class="flex items-center gap-2">
-      <button onclick="showPage('org-config')" class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-        <i data-lucide="settings" class="w-4 h-4"></i> 组织管理
-      </button>
       <button onclick="loadOrgView()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><i data-lucide="refresh-cw" class="w-4 h-4 text-gray-500"></i></button>
     </div>
   </div>
@@ -929,6 +934,8 @@ let selectedFiles = [];
 let allConsultants = [];
 let allCalls = [];
 let allReports = [];
+let consultantGroupFilter = { bigGroupId: '', smallGroupId: '' };
+let consultantOrgConfig = null; // cached org config for group filters
 
 // ==================== INIT ====================
 lucide.createIcons();
@@ -2085,13 +2092,15 @@ const RADAR_DIMS = [
 
 async function loadConsultants() {
   try {
-    // 并行获取顾问列表和通话列表
-    const [consultants, calls] = await Promise.all([
+    // 并行获取顾问列表、通话列表和组织配置
+    const [consultants, calls, orgConfig] = await Promise.all([
       api('/api/consultants'),
-      api('/api/calls')
+      api('/api/calls'),
+      api('/api/org-config').catch(() => null)
     ]);
     allConsultants = (consultants || []).filter(c => c.call_count > 0);
     allCalls = calls || [];
+    consultantOrgConfig = orgConfig;
 
     // 为每个顾问计算维度均值
     allConsultants.forEach(c => {
@@ -2137,6 +2146,7 @@ async function loadConsultants() {
     }
 
     renderConsultantCards();
+    populateConsultantGroupFilters();
   } catch (e) {
     document.getElementById('consultantCardsGrid').innerHTML = '<p class="col-span-2 text-center text-danger-500 py-12">加载失败：' + e.message + '</p>';
   }
@@ -2144,7 +2154,56 @@ async function loadConsultants() {
 
 function filterConsultants() {
   consultantSearchTerm = (document.getElementById('consultantSearch')?.value || '').trim().toLowerCase();
+  consultantGroupFilter.bigGroupId = document.getElementById('consultantBigGroupFilter')?.value || '';
+  consultantGroupFilter.smallGroupId = document.getElementById('consultantSmallGroupFilter')?.value || '';
   renderConsultantCards();
+}
+
+// 大组切换时，级联更新小组下拉框
+function onBigGroupFilterChange() {
+  const bigGroupId = document.getElementById('consultantBigGroupFilter')?.value || '';
+  consultantGroupFilter.bigGroupId = bigGroupId;
+  populateSmallGroupFilter(bigGroupId);
+  filterConsultants();
+}
+
+// 填充大组下拉框
+function populateConsultantGroupFilters() {
+  const bigSelect = document.getElementById('consultantBigGroupFilter');
+  if (!bigSelect || !consultantOrgConfig) return;
+  const bigGroups = consultantOrgConfig.big_groups || [];
+  let html = '<option value="">全部大组</option>';
+  bigGroups.forEach(bg => {
+    html += `<option value="${bg.id}">${escapeHtml(bg.name)}</option>`;
+  });
+  bigSelect.innerHTML = html;
+  // 恢复之前选中的值
+  if (consultantGroupFilter.bigGroupId) {
+    bigSelect.value = consultantGroupFilter.bigGroupId;
+    populateSmallGroupFilter(consultantGroupFilter.bigGroupId);
+  } else {
+    populateSmallGroupFilter('');
+  }
+}
+
+// 根据大组填充小组下拉框
+function populateSmallGroupFilter(bigGroupId) {
+  const smallSelect = document.getElementById('consultantSmallGroupFilter');
+  if (!smallSelect) return;
+  let html = '<option value="">全部小组</option>';
+  if (bigGroupId && consultantOrgConfig) {
+    const bg = (consultantOrgConfig.big_groups || []).find(b => b.id === bigGroupId);
+    if (bg && bg.small_groups) {
+      bg.small_groups.forEach(sg => {
+        html += `<option value="${sg.id}">${escapeHtml(sg.name)}</option>`;
+      });
+    }
+  }
+  smallSelect.innerHTML = html;
+  // 恢复之前选中的值
+  if (consultantGroupFilter.smallGroupId) {
+    smallSelect.value = consultantGroupFilter.smallGroupId;
+  }
 }
 
 function computeRadarData(consultant) {
@@ -2166,6 +2225,26 @@ function renderConsultantCards() {
       const name = (c.consultant_name || '').toLowerCase();
       const id = (c.consultant_id || '').toLowerCase();
       return name.includes(consultantSearchTerm) || id.includes(consultantSearchTerm);
+    });
+  }
+
+  // 分组过滤
+  if (consultantGroupFilter.bigGroupId || consultantGroupFilter.smallGroupId) {
+    const assignments = (consultantOrgConfig && consultantOrgConfig.consultant_assignments) || {};
+    filtered = filtered.filter(c => {
+      const sgId = assignments[c.consultant_id];
+      if (!sgId) return false; // 未归属任何小组的顾问不显示
+      if (consultantGroupFilter.smallGroupId) {
+        return sgId === consultantGroupFilter.smallGroupId;
+      }
+      // 按大组筛选：检查该小组是否属于选中的大组
+      if (consultantGroupFilter.bigGroupId && consultantOrgConfig) {
+        const bg = (consultantOrgConfig.big_groups || []).find(b => b.id === consultantGroupFilter.bigGroupId);
+        if (!bg) return true;
+        const sgIds = (bg.small_groups || []).map(s => s.id);
+        return sgIds.includes(sgId);
+      }
+      return true;
     });
   }
 
